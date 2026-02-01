@@ -43,37 +43,41 @@
             100% { transform: scale(1); opacity: 1; }
         }
 
-        .heart-beat {
-            animation: beat 1s infinite;
+        .shimmer {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
         }
 
-        @keyframes beat {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
         }
     </style>
 </head>
 <body class="bg-main min-h-screen flex items-center justify-center p-4 overflow-hidden">
 
     <div id="app" class="w-full flex justify-center items-center min-h-[600px] max-h-screen">
-        <!-- Loading state -->
+        <!-- Trạng thái đang tải dữ liệu -->
         <div class="bg-white p-12 rounded-3xl shadow-xl flex flex-col items-center gap-4">
             <i class="fas fa-circle-notch fa-spin text-4xl text-indigo-600"></i>
-            <p class="font-bold text-slate-600">Loading resources...</p>
+            <p class="font-bold text-slate-600">Đang nạp dữ liệu từ vựng...</p>
         </div>
     </div>
 
     <script>
+        // --- CẤU HÌNH ---
+        // Điền Gemini API Key của bạn để sử dụng tính năng tự động tạo bài đọc AI
         const apiKey = "AIzaSyAVOzANDNlqqCSiDNDPPjn36JidDEVOQGo"; 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'ielts-vocab-master';
 
+        // --- TRẠNG THÁI (STATE) ---
         let state = {
             view: 'topics',
             lastView: null,
             score: 0,
             timeLeft: 300,
             lives: 3,
-            consecutiveWrong: 0,
             masteredWords: new Set(),
             currentQuizIndex: 0,
             quizPool: [],
@@ -84,61 +88,105 @@
             shuffledWordChoices: [],
             activeTooltip: null,
             timerInterval: null,
+            // Dữ liệu ngoại vi
             vocabBank: [],
-            readingLevels: [],
+            readingLevels: [], 
             isLoading: true,
             isGenerating: false
         };
 
+        // --- XỬ LÝ DỮ LIỆU TỪ JSON ---
+        const processJsonData = (data) => {
+            // Kiểm tra xem data là mảng hay đối tượng chứa mảng vocab
+            const rawList = Array.isArray(data) ? data : (data.vocab || []);
+
+            // Ánh xạ dữ liệu: ID -> id, Word -> word, Meaning -> definition, Synonym -> examples
+            state.vocabBank = rawList.map(item => ({
+                id: item.ID || Math.random(),
+                word: item.Word || "Unknown",
+                definition: item.Meaning || "No definition available",
+                examples: item.Synonym || ""
+            }));
+
+            state.isLoading = false;
+            render();
+        };
+
+        // --- NẠP DỮ LIỆU TỪ TẬP TIN ---
         const loadExternalData = async () => {
             try {
-                const response = await fetch('architecture.json');
-                if (!response.ok) throw new Error('Could not find architecture.json');
+                // Sử dụng đường dẫn tương đối rõ ràng hơn để tránh lỗi parse URL
+                const response = await fetch('./architecture.json');
+                if (!response.ok) throw new Error('Không thể tải file architecture.json');
                 const data = await response.json();
-                
-                // MAP DATA FROM NEW JSON STRUCTURE (Word, Meaning, Synonym)
-                state.vocabBank = data.vocab.map(item => ({
-                    word: item.word || item.word,
-                    definition: item.meaning || item.definition,
-                    examples: item.synonym || item.examples,
-                    id: item.id || item.id
-                }));
-                
-                state.readingLevels = data.levels;
-                state.isLoading = false;
-                render();
+                processJsonData(data);
             } catch (error) {
-                console.error('Failed to load JSON:', error);
-                document.getElementById('app').innerHTML = `
-                    <div class="bg-white p-8 rounded-3xl shadow-xl text-center">
-                        <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
-                        <p class="font-bold text-slate-800">External data not found</p>
-                        <p class="text-sm text-slate-500 mb-4">Make sure architecture.json is in the same folder.</p>
-                        <button onclick="location.reload()" class="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold">Retry</button>
-                    </div>
-                `;
+                console.error('Lỗi nạp JSON:', error);
+                showErrorState();
             }
         };
 
+        // --- HIỂN THỊ TRẠNG THÁI LỖI & NẠP FILE THỦ CÔNG ---
+        const showErrorState = () => {
+            document.getElementById('app').innerHTML = `
+                <div class="bg-white p-10 rounded-3xl shadow-xl text-center max-w-md animate-pop">
+                    <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-file-import text-2xl"></i>
+                    </div>
+                    <p class="font-bold text-slate-800 text-lg mb-2">Không thể tự động nạp dữ liệu</p>
+                    <p class="text-sm text-slate-500 mb-6 leading-relaxed">
+                        Trình duyệt đã chặn yêu cầu nạp tập tin tự động. Vui lòng chọn tập tin <b>architecture.json</b> thủ công để tiếp tục.
+                    </p>
+                    <label class="block w-full py-3 px-6 bg-indigo-600 text-white rounded-xl font-bold cursor-pointer hover:bg-indigo-700 transition-all shadow-lg active:scale-95">
+                        <i class="fas fa-upload mr-2"></i> Chọn architecture.json
+                        <input type="file" id="manual-json" class="hidden" accept=".json">
+                    </label>
+                    <button onclick="location.reload()" class="mt-4 text-slate-400 text-xs hover:text-indigo-500 transition-colors">Thử lại tự động</button>
+                </div>
+            `;
+
+            document.getElementById('manual-json')?.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        processJsonData(data);
+                    } catch (err) {
+                        alert("Lỗi: Tập tin không đúng định dạng JSON.");
+                    }
+                };
+                reader.readAsText(file);
+            });
+        };
+
+        // --- TẠO BÀI ĐỌC AI ---
         const generateAIReading = async () => {
-            if (state.isGenerating) return;
+            if (state.isGenerating || !apiKey) {
+                if(!apiKey) alert("Vui lòng cung cấp Gemini API Key trong mã nguồn để sử dụng tính năng này.");
+                return;
+            }
             state.isGenerating = true;
             render();
 
             try {
-                const wordList = state.vocabBank.map(v => v.word).join(', ');
-                const prompt = `Create an IELTS Reading Level 2 passage about architecture. 
-                Use at least 8 of these words: ${wordList}.
+                // Lấy ngẫu nhiên 12 từ trong danh sách 81 từ
+                const shuffledVocab = shuffle(state.vocabBank).slice(0, 12);
+                const wordList = shuffledVocab.map(v => v.word).join(', ');
+
+                const prompt = `Create an IELTS Reading Level 2 passage related to urban development or architecture. 
+                You MUST use as many of these words as possible: ${wordList}.
                 Return ONLY a JSON object with this exact structure:
                 {
-                  "title": "String",
-                  "wordCount": "String",
-                  "genre": "String",
-                  "content": "A 200-word passage",
-                  "summary": "A 3-sentence summary with (1)__________, (2)__________ blanks",
-                  "summaryAnswers": ["answer1", "answer2"],
-                  "comprehension": [{"q": "Question", "type": "TF", "a": "True/False", "evidence": "sentence from text"}],
-                  "wordChoice": [{"q": "Sentence with _____", "options": ["Option A", "Option B"], "a": "Option A"}]
+                  "title": "Title of the passage",
+                  "wordCount": "~250 words",
+                  "genre": "Academic/Argumentative",
+                  "content": "The full article text...",
+                  "summary": "A summary paragraph with blanks like (1)__________, (2)__________, etc.",
+                  "summaryAnswers": ["word1", "word2", "word3"],
+                  "comprehension": [{"q": "Question text", "type": "TF", "a": "True/False/Not Given", "evidence": "sentence from text"}],
+                  "wordChoice": [{"q": "Sentence with ____ blank.", "options": ["Correct", "Wrong"], "a": "Correct"}]
                 }`;
 
                 const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
@@ -147,10 +195,9 @@
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
                 });
 
-                const data = await resp.json();
-                const rawText = data.candidates[0].content.parts[0].text;
-                const cleanedJson = rawText.replace(/```json|```/g, '').trim();
-                const newLevel = JSON.parse(cleanedJson);
+                const result = await resp.json();
+                const rawJson = result.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim();
+                const newLevel = JSON.parse(rawJson);
                 
                 newLevel.id = Date.now();
                 state.readingLevels.push(newLevel);
@@ -162,13 +209,15 @@
                     shuffledOptions: shuffle([...q.options])
                 }));
             } catch (err) {
-                console.error("AI Generation failed:", err);
+                console.error("AI Gen Error:", err);
+                alert("Không thể tạo bài đọc. Kiểm tra API Key và kết nối mạng.");
             } finally {
                 state.isGenerating = false;
                 render();
             }
         };
 
+        // --- HÀM HỖ TRỢ ---
         const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
 
         const playSound = (type) => {
@@ -180,26 +229,22 @@
                 if (type === 'correct') {
                     osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime);
                     osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
-                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.05, ctx.currentTime);
                 } else {
                     osc.type = 'sawtooth'; osc.frequency.setValueAtTime(220, ctx.currentTime);
-                    osc.frequency.linearRampToValueAtTime(110, ctx.currentTime + 0.2);
-                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
-                    gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.05, ctx.currentTime);
                 }
-                osc.start(); osc.stop(ctx.currentTime + (type === 'correct' ? 0.1 : 0.2));
+                osc.start(); osc.stop(ctx.currentTime + 0.15);
             } catch (e) {}
         };
 
+        // --- GIAO DIỆN ---
         const render = () => {
             if (state.isLoading) return;
             const app = document.getElementById('app');
-            let scrollPos = 0;
-            const scrollContainer = document.getElementById('reading-scroll-container');
-            if (scrollContainer) scrollPos = scrollContainer.scrollTop;
             const isNewView = state.view !== state.lastView;
             state.lastView = state.view;
+
             app.innerHTML = '';
             let content;
             switch (state.view) {
@@ -210,10 +255,9 @@
                 case 'listening': content = createListeningView(); break;
                 case 'result': content = createResultView(); break;
             }
+
             if (isNewView) content.classList.add('animate-pop');
             app.appendChild(content);
-            const newScrollContainer = document.getElementById('reading-scroll-container');
-            if (newScrollContainer) newScrollContainer.scrollTop = scrollPos;
         };
 
         const createTopicSelection = () => {
@@ -222,34 +266,21 @@
             container.innerHTML = `
                 <div class="text-center mb-4">
                     <h1 class="text-4xl font-black text-slate-800 tracking-tighter mb-2">IELTS Vocab Master</h1>
-                    <p class="text-slate-500 font-medium italic text-sm">Select a topic to start your vocabulary journey</p>
+                    <p class="text-slate-500 font-medium italic text-sm tracking-tight">Học hơn 80 từ vựng học thuật từ danh sách kiến trúc</p>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="topic-grid"></div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <button onclick="state.view = 'menu'; render();" class="p-6 bg-white border-2 border-indigo-100 rounded-2xl shadow-lg hover:border-indigo-500 hover:-translate-y-1 transition-all flex flex-col items-center gap-3">
+                        <div class="p-3 bg-indigo-50 rounded-xl"><i class="fas fa-city text-indigo-600 text-2xl"></i></div>
+                        <span class="font-bold text-slate-800">Architecture</span>
+                    </button>
+                    ${['Tech', 'Nature', 'Health'].map(t => `
+                        <div class="p-6 bg-slate-50/50 border-2 border-slate-100 rounded-2xl opacity-50 grayscale flex flex-col items-center gap-3 cursor-not-allowed">
+                            <i class="fas fa-lock text-slate-300 text-2xl"></i>
+                            <span class="font-bold text-slate-400">${t}</span>
+                        </div>
+                    `).join('')}
+                </div>
             `;
-            const topics = [
-                { id: 'architecture', name: 'Architecture', active: true, icon: 'fa-city text-indigo-600' },
-                { id: 'tech', name: 'Technology', active: false, icon: 'fa-microchip text-slate-400' },
-                { id: 'nature', name: 'Environment', active: false, icon: 'fa-leaf text-slate-400' },
-                { id: 'business', name: 'Business', active: false, icon: 'fa-briefcase text-slate-400' },
-                { id: 'health', name: 'Health', active: false, icon: 'fa-heart text-slate-400' },
-                { id: 'culture', name: 'Culture', active: false, icon: 'fa-landmark text-slate-400' },
-                { id: 'education', name: 'Education', active: false, icon: 'fa-user-graduate text-slate-400' },
-                { id: 'travel', name: 'Travel', active: false, icon: 'fa-plane text-slate-400' },
-            ];
-            const grid = container.querySelector('#topic-grid');
-            topics.forEach(t => {
-                const btn = document.createElement('button');
-                btn.className = `group relative p-6 rounded-2xl border-2 transition-all duration-300 flex flex-col items-center gap-3 h-40 justify-center ${t.active ? 'bg-white border-indigo-100 shadow-lg hover:border-indigo-500 hover:shadow-indigo-200 hover:-translate-y-1' : 'bg-slate-50/50 border-slate-100 opacity-60 grayscale cursor-not-allowed'}`;
-                btn.innerHTML = `
-                    <div class="p-3 rounded-xl transition-colors ${t.active ? 'bg-indigo-50 group-hover:bg-indigo-100' : 'bg-slate-100'}">
-                        <i class="fas ${t.icon} text-2xl"></i>
-                    </div>
-                    <span class="font-bold ${t.active ? 'text-slate-800' : 'text-slate-400'}">${t.name}</span>
-                    ${!t.active ? '<div class="absolute top-2 right-2 text-slate-300"><i class="fas fa-lock text-xs"></i></div>' : ''}
-                `;
-                if (t.active) btn.onclick = () => { state.view = 'menu'; render(); };
-                grid.appendChild(btn);
-            });
             return container;
         };
 
@@ -258,20 +289,21 @@
             container.className = "flex flex-col gap-6 p-8 text-center bg-white rounded-3xl shadow-xl max-w-md w-full border border-slate-100";
             container.innerHTML = `
                 <div class="flex items-center gap-2 mb-2">
-                    <button onclick="state.view = 'topics'; render();" class="p-2 hover:bg-slate-100 rounded-xl text-slate-400 transition-colors">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <span class="text-xs font-black text-indigo-400 uppercase tracking-widest">Topic: Architecture</span>
+                    <button onclick="state.view = 'topics'; render();" class="p-2 hover:bg-slate-100 rounded-xl text-slate-400"><i class="fas fa-chevron-left"></i></button>
+                    <span class="text-xs font-black text-indigo-400 uppercase tracking-widest">List: Architecture</span>
                 </div>
                 <div class="flex justify-center mb-2">
-                    <div class="w-24 h-24 bg-white rounded-2xl overflow-hidden shadow-sm flex items-center justify-center p-1 border border-slate-50">
-                        <img src="logo.jpg" onerror="this.src='https://via.placeholder.com/100/6366f1/ffffff?text=IELTS'" alt="Logo" class="w-full h-full object-contain">
+                    <div class="w-24 h-24 bg-white rounded-2xl overflow-hidden shadow-sm flex items-center justify-center border border-slate-50">
+                        <img src="logo.jpg" onerror="this.src='https://via.placeholder.com/100/6366f1/ffffff?text=IELTS'" class="w-full h-full object-contain">
                     </div>
                 </div>
                 <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight">Architecture</h2>
+                <p class="text-slate-500 text-sm italic">Detailed, Skyline, Infrastructure...</p>
+                
                 <button onclick="startQuiz()" class="py-4 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.02]">
-                    <i class="fas fa-bolt"></i><span>Vocab Practice (5 Mins)</span>
+                    <i class="fas fa-bolt"></i><span>Luyện từ vựng</span>
                 </button>
+
                 <div class="grid grid-cols-2 gap-4">
                     <button onclick="state.view = 'reading'; render();" class="p-4 bg-emerald-50 text-emerald-700 border-2 border-emerald-100 rounded-2xl font-semibold hover:bg-emerald-100 flex flex-col items-center gap-2 transition-all hover:scale-[1.02]"><i class="fas fa-book"></i><span>Reading</span></button>
                     <button onclick="state.view = 'listening'; render();" class="p-4 bg-amber-50 text-amber-700 border-2 border-amber-100 rounded-2xl font-semibold hover:bg-amber-100 flex flex-col items-center gap-2 transition-all hover:scale-[1.02]"><i class="fas fa-headphones"></i><span>Listening</span></button>
@@ -281,80 +313,58 @@
         };
 
         const startQuiz = () => {
-            state.quizPool = state.vocabBank.map(v => {
-                const distractors = state.vocabBank.filter(x => x.word.toLowerCase() !== v.word.toLowerCase()).map(x => x.definition);
-                return { ...v, streak: 0, fixedOptions: shuffle([...shuffle(distractors).slice(0, 3), v.definition]) };
-            });
-            state.quizPool = shuffle(state.quizPool);
-            state.score = 0; state.timeLeft = 300; state.lives = 3; state.consecutiveWrong = 0;
-            state.masteredWords = new Set(); state.currentQuizIndex = 0; state.view = 'quiz';
-            startTimer(); render();
-        };
-
-        const startTimer = () => {
-            if (state.timerInterval) clearInterval(state.timerInterval);
-            state.timerInterval = setInterval(() => {
-                state.timeLeft--;
-                if (state.timeLeft <= 0) { clearInterval(state.timerInterval); finishGame(); }
-                else {
-                    const timerDisp = document.getElementById('timer-display');
-                    if (timerDisp) timerDisp.innerText = `${Math.floor(state.timeLeft / 60)}:${(state.timeLeft % 60).toString().padStart(2, '0')}`;
-                }
-            }, 1000);
+            state.quizPool = state.vocabBank.map(v => ({
+                ...v,
+                streak: 0,
+                fixedOptions: shuffle([...shuffle(state.vocabBank.filter(x => x.word !== v.word).map(x => x.definition)).slice(0, 3), v.definition])
+            }));
+            state.score = 0; state.lives = 3; state.currentQuizIndex = 0; state.view = 'quiz'; render();
         };
 
         const createQuiz = () => {
             const item = state.quizPool[state.currentQuizIndex];
             const container = document.createElement('div');
             container.className = "bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full h-[550px] flex flex-col justify-between relative";
-            const timerPercent = (state.timeLeft / 300) * 100;
             container.innerHTML = `
-                <div class="absolute top-0 left-0 h-1.5 bg-indigo-600 transition-all duration-1000" style="width: ${timerPercent}%"></div>
                 <div>
-                    <div class="flex justify-between items-center mb-6">
-                        <div class="flex items-center gap-3">
-                            <div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Score</span><span class="text-indigo-600 text-xl font-black">${state.score}</span></div>
-                            <div class="flex gap-1 ml-4" id="lives-container"></div>
-                        </div>
-                        <div id="timer-display" class="text-xl font-mono font-bold text-slate-600">${Math.floor(state.timeLeft / 60)}:${(state.timeLeft % 60).toString().padStart(2, '0')}</div>
+                    <div class="flex justify-between items-center mb-8">
+                        <div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Score</span><span class="text-indigo-600 text-xl font-black">${state.score}</span></div>
+                        <div class="flex gap-1" id="lives-container"></div>
                     </div>
-                    <div class="text-center mb-8"><h2 class="text-4xl font-black text-slate-800 mb-3 capitalize tracking-tight">${item.word}</h2><div class="grid gap-2.5" id="options-container"></div></div>
+                    <div class="text-center mb-8">
+                        <h2 class="text-4xl font-black text-slate-800 mb-2 capitalize tracking-tight">${item.word}</h2>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Chọn định nghĩa chính xác</p>
+                    </div>
+                    <div class="grid gap-2.5" id="options-container"></div>
+                </div>
+                <div class="mt-4 flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase">
+                    <span>Đã nạp: ${state.vocabBank.length} từ</span>
+                    <button onclick="state.view = 'menu'; render();" class="hover:text-red-500 underline">Thoát</button>
                 </div>
             `;
+            
+            const livesCont = container.querySelector('#lives-container');
+            for(let i=0; i<3; i++) livesCont.innerHTML += `<i class="fas fa-heart ${state.lives > i ? 'text-red-500' : 'text-slate-200'}"></i>`;
+
             const optsCont = container.querySelector('#options-container');
             item.fixedOptions.forEach((opt, idx) => {
                 const btn = document.createElement('button');
-                btn.className = `p-3.5 rounded-2xl text-left font-medium border-2 transition-all duration-300 border-slate-100 hover:border-indigo-200 hover:bg-slate-50`;
+                btn.className = `p-4 rounded-2xl text-left font-medium border-2 border-slate-100 hover:border-indigo-200 hover:bg-slate-50 transition-all`;
                 btn.innerText = opt;
-                btn.onclick = () => handleQuizAnswer(idx);
+                btn.onclick = () => {
+                    const isCorrect = opt === item.definition;
+                    playSound(isCorrect ? 'correct' : 'wrong');
+                    if(isCorrect) { state.score += 10; state.masteredWords.add(item.word); }
+                    else { state.lives--; }
+                    
+                    if(state.lives <= 0) state.view = 'result';
+                    else {
+                        state.currentQuizIndex = (state.currentQuizIndex + 1) % state.quizPool.length;
+                        render();
+                    }
+                };
                 optsCont.appendChild(btn);
             });
-            return container;
-        };
-
-        const handleQuizAnswer = (idx) => {
-            const item = state.quizPool[state.currentQuizIndex];
-            const correctIdx = item.fixedOptions.indexOf(item.definition);
-            const isCorrect = idx === correctIdx;
-            playSound(isCorrect ? 'correct' : 'wrong');
-            if (isCorrect) { state.score += 10; item.streak++; if (item.streak >= 3) state.masteredWords.add(item.word); }
-            else { state.lives--; item.streak = 0; }
-            if (state.lives <= 0 || state.masteredWords.size === state.vocabBank.length) { clearInterval(state.timerInterval); finishGame(); return; }
-            state.currentQuizIndex = (state.currentQuizIndex + 1) % state.quizPool.length;
-            render();
-        };
-
-        const finishGame = () => { state.view = 'result'; render(); };
-
-        const createResultView = () => {
-            const container = document.createElement('div');
-            container.className = "bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center border border-slate-100 animate-pop";
-            container.innerHTML = `
-                <div class="flex justify-center mb-4"><i class="fas fa-award text-5xl text-amber-500"></i></div>
-                <h2 class="text-xl font-bold text-slate-500 uppercase tracking-widest">Session Results</h2>
-                <div class="text-5xl my-6 tracking-tighter">Done!</div>
-                <button onclick="state.view = 'menu'; render();" class="w-full py-4 bg-slate-800 text-white rounded-2xl font-bold hover:bg-slate-900 transition-all shadow-lg">Back to Menu</button>
-            `;
             return container;
         };
 
@@ -366,37 +376,45 @@
                     <div class="flex items-center justify-between mb-6">
                         <div class="flex items-center gap-3">
                             <button onclick="state.view = 'menu'; render();" class="p-2 hover:bg-slate-100 rounded-xl transition-colors"><i class="fas fa-chevron-left"></i></button>
-                            <h2 class="text-2xl font-bold">Reading Practice</h2>
+                            <h2 class="text-2xl font-bold">Bài tập Reading</h2>
                         </div>
                         <button id="ai-gen-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all flex items-center gap-2">
-                            ${state.isGenerating ? '<i class="fas fa-spinner fa-spin"></i> Generating...' : '<i class="fas fa-magic"></i> Generate AI Passage'}
+                            ${state.isGenerating ? '<i class="fas fa-spinner fa-spin"></i> Generating...' : '<i class="fas fa-magic"></i> Tạo bài đọc AI'}
                         </button>
                     </div>
-                    <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 grid gap-4" id="reading-levels-grid"></div>
+                    <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 grid gap-4" id="reading-levels-grid">
+                        ${state.readingLevels.length === 0 ? '<p class="text-center text-slate-400 italic py-10">Chưa có bài đọc nào. Sử dụng nút AI ở trên để tạo một bài đọc từ danh sách từ vựng của bạn!</p>' : ''}
+                    </div>
                 `;
                 const grid = container.querySelector('#reading-levels-grid');
                 state.readingLevels.forEach(l => {
                     const btn = document.createElement('button');
-                    btn.className = "flex items-center justify-between p-6 border-2 border-slate-100 rounded-2xl hover:border-indigo-500 hover:bg-indigo-50 group transition-all";
-                    btn.innerHTML = `
-                        <div class="text-left"><div class="font-bold text-lg text-slate-800 group-hover:text-indigo-700">${l.title}</div><div class="text-xs text-slate-400 font-bold uppercase tracking-widest">${l.genre} • ${l.wordCount}</div></div><div class="text-indigo-600">→</div>
-                    `;
-                    btn.onclick = () => { state.selectedReadingId = l.id; state.readingSubmitted = false; state.shuffledWordChoices = l.wordChoice.map(q => ({ ...q, shuffledOptions: shuffle([...q.options]) })); render(); };
+                    btn.className = "flex items-center justify-between p-6 border-2 border-slate-100 rounded-2xl hover:border-indigo-500 hover:bg-indigo-50 transition-all";
+                    btn.innerHTML = `<div class="text-left"><div class="font-bold text-slate-800">${l.title}</div><div class="text-xs text-slate-400 font-bold uppercase">${l.wordCount}</div></div><i class="fas fa-chevron-right text-indigo-600"></i>`;
+                    btn.onclick = () => { state.selectedReadingId = l.id; state.readingSubmitted = false; render(); };
                     grid.appendChild(btn);
                 });
                 container.querySelector('#ai-gen-btn').onclick = generateAIReading;
                 return container;
             }
+
             const level = state.readingLevels.find(l => l.id === state.selectedReadingId);
             const container = document.createElement('div');
             container.className = "bg-white rounded-3xl shadow-xl w-full max-w-7xl h-[95vh] flex flex-col overflow-hidden";
             container.innerHTML = `
-                <div class="flex justify-between items-center px-8 py-4 border-b shrink-0 bg-white z-10">
-                    <div class="flex items-center gap-4"><button onclick="state.selectedReadingId = null; render();" class="p-2 hover:bg-slate-100 rounded-xl transition-colors"><i class="fas fa-chevron-left"></i></button><div><h2 class="text-2xl font-black text-slate-800 uppercase tracking-tight">${level.title}</h2></div></div><button onclick="state.selectedReadingId = null; render();" class="text-slate-400 hover:text-red-500 font-bold px-4 py-2 hover:bg-red-50 rounded-xl transition-colors">Close ✕</button>
+                <div class="flex justify-between items-center px-8 py-4 border-b bg-white z-10 shrink-0">
+                    <div class="flex items-center gap-4"><button onclick="state.selectedReadingId = null; render();" class="p-2 hover:bg-slate-100 rounded-xl"><i class="fas fa-chevron-left"></i></button><h2 class="text-2xl font-black text-slate-800 uppercase">${level.title}</h2></div>
+                    <button onclick="state.selectedReadingId = null; render();" class="text-slate-400 hover:text-red-500 font-bold">Đóng ✕</button>
                 </div>
-                <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8" id="reading-scroll-container">
-                    <div class="bg-slate-50 rounded-3xl p-8 border border-slate-100 shadow-inner" id="article-content"><p class="text-slate-700 leading-relaxed text-lg font-serif select-none">${level.content}</p></div>
-                    <div id="questions-content"></div>
+                <div class="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-10" id="reading-scroll-container">
+                    <div class="bg-slate-50 rounded-3xl p-10 border border-slate-100 shadow-inner font-serif text-xl leading-relaxed text-slate-700">${level.content}</div>
+                    <div class="space-y-8">
+                        <h3 class="text-xs font-black text-indigo-500 uppercase tracking-widest border-b pb-2">Questions</h3>
+                        <div class="bg-emerald-50/50 p-8 rounded-3xl border border-emerald-100 italic text-lg leading-loose">${level.summary}</div>
+                    </div>
+                    <div class="pb-20 text-center">
+                        <button onclick="state.selectedReadingId = null; render();" class="px-10 py-4 bg-slate-800 text-white rounded-2xl font-bold shadow-xl">Hoàn thành</button>
+                    </div>
                 </div>
             `;
             return container;
@@ -405,10 +423,32 @@
         const createListeningView = () => {
             const container = document.createElement('div');
             container.className = "bg-white rounded-3xl shadow-xl p-8 max-w-2xl w-full text-center";
-            container.innerHTML = `<button onclick="state.view = 'menu'; render();" class="py-4 px-12 bg-slate-800 text-white rounded-2xl font-bold">Back</button>`;
+            container.innerHTML = `
+                <i class="fas fa-headphones text-5xl text-amber-500 mb-6"></i>
+                <h2 class="text-2xl font-bold mb-4">Luyện nghe</h2>
+                <p class="text-slate-500 mb-8">Tính năng tự động tạo audio bài đọc đang được phát triển.</p>
+                <button onclick="state.view = 'menu'; render();" class="py-4 px-12 bg-slate-800 text-white rounded-2xl font-bold">Quay lại Menu</button>
+            `;
             return container;
         };
 
+        const createResultView = () => {
+            const container = document.createElement('div');
+            container.className = "bg-white rounded-3xl shadow-2xl p-10 max-w-md w-full text-center border border-slate-100 animate-pop";
+            container.innerHTML = `
+                <div class="flex justify-center mb-6"><i class="fas fa-award text-6xl text-amber-500"></i></div>
+                <h2 class="text-xl font-bold text-slate-400 uppercase tracking-widest">Kết quả phiên học</h2>
+                <div class="text-5xl my-6 font-black text-slate-800 tracking-tighter">Xong!</div>
+                <div class="bg-indigo-50 p-6 rounded-2xl mb-8">
+                    <div class="text-4xl font-black text-indigo-700">${state.score}</div>
+                    <div class="text-[10px] text-indigo-400 uppercase font-black">Điểm cuối</div>
+                </div>
+                <button onclick="state.view = 'menu'; render();" class="w-full py-4 bg-slate-800 text-white rounded-2xl font-bold hover:bg-slate-900 shadow-lg">Quay về trang chính</button>
+            `;
+            return container;
+        };
+
+        // --- KHỞI CHẠY ---
         window.onload = loadExternalData;
     </script>
 </body>
