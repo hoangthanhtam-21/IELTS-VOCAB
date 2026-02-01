@@ -1,0 +1,488 @@
+[
+  {
+    "ID": "1",
+    "Word": "Detailed",
+    "Synonym": "Thorough, comprehensive, meticulous",
+    "Meaning": "Chi tiết, tỉ mỉ, toàn diện"
+  },
+  {
+    "ID": "2",
+    "Word": "Cluster",
+    "Synonym": "Bunch, group, collection",
+    "Meaning": "Cụm, nhóm, bầy"
+  },
+  {
+    "ID": "3",
+    "Word": "Skyline",
+    "Synonym": "Horizon, distance, prospect",
+    "Meaning": "Đường chân trời (thành phố)"
+  },
+  {
+    "ID": "4",
+    "Word": "Distinct",
+    "Synonym": "Separate, different, distinctive",
+    "Meaning": "Riêng biệt, khác biệt"
+  },
+  {
+    "ID": "5",
+    "Word": "Primarily",
+    "Synonym": "Chiefly, mainly, principally",
+    "Meaning": "Chủ yếu, trước hết"
+  },
+  {
+    "ID": "6",
+    "Word": "Compilation",
+    "Synonym": "Collection, gathering, assembling",
+    "Meaning": "Sự biên soạn, bộ sưu tập"
+  },
+  {
+    "ID": "7",
+    "Word": "Urban",
+    "Synonym": "City, metropolitan",
+    "Meaning": "Thuộc về đô thị"
+  },
+  {
+    "ID": "8",
+    "Word": "Tone",
+    "Synonym": "Style, spirit",
+    "Meaning": "Giọng điệu, phong cách"
+  },
+  {
+    "ID": "9",
+    "Word": "Somewhat",
+    "Synonym": "Slightly, fairly, to some extent",
+    "Meaning": "Hơi hơi, có phần nào"
+  },
+  {
+    "ID": "10",
+    "Word": "Latter",
+    "Synonym": "Second, later, last",
+    "Meaning": "Cái thứ hai, người sau (trong danh sách 2 đối tượng)"
+  },
+  {
+    "ID": "11",
+    "Word": "Incorporate",
+    "Synonym": "Merge, include, integrate",
+    "Meaning": "Kết hợp, hợp nhất, tích hợp"
+  },
+  {
+    "ID": "12",
+    "Word": "Paper",
+    "Synonym": "Document, record, manuscript",
+    "Meaning": "Tài liệu, hồ sơ, bản thảo"
+  },
+  {
+    "ID": "13",
+    "Word": "Fascinating",
+    "Synonym": "Captivating, charming, intriguing",
+    "Meaning": "Lôi cuốn, quyến rũ, hấp dẫn"
+  },
+  {
+    "ID": "14",
+    "Word": "Account",
+    "Synonym": "Description, explanation, justification",
+    "Meaning": "Sự mô tả, lời giải thích"
+  },
+  {
+    "ID": "15",
+    "Word": "Landscape",
+    "Synonym": "Scenery, setting, background",
+    "Meaning": "Phong cảnh, bối cảnh"
+  },
+  {
+    "ID": "16",
+    "Word": "Subterranean",
+    "Synonym": "Under the ground",
+    "Meaning": "Dưới lòng đất"
+  },
+  {
+    "ID": "17",
+    "Word": "Subsoil",
+    "Synonym": "The layer of soil under the surface",
+    "Meaning": "Lớp đất dưới tầng mặt"
+  },
+  {
+    "ID": "18",
+    "Word": "Various",
+    "Synonym": "Numerous, diverse, assorted",
+    "Meaning": "Đa dạng, nhiều loại khác nhau"
+  },
+  {
+    "ID": "19",
+    "Word": "Residence",
+    "Synonym": "A home",
+    "Meaning": "Nơi cư trú, nhà ở"
+  },
+  {
+    "ID": "20",
+    "Word": "Legend",
+    "Synonym": "Fairytale, folklore, folk tale",
+    "Meaning": "Truyền thuyết, truyện dân gian"
+  },
+  {
+    "ID": "21",
+    "Word": "Implementation",
+    "Synonym": "Installation, employment, putting into practice",
+    "Meaning": "Sự thực thi, triển khai"
+  },
+  {
+    "ID": "22",
+    "Word": "Grid",
+    "Synonym": "A system of wires, electricity network",
+    "Meaning": "Hệ thống lưới điện"
+  },
+  {
+    "ID": "23",
+    "Word": "Informative",
+    "Synonym": "Providing useful information",
+    "Meaning": "Nhiều thông tin hữu ích"
+  },
+  {
+    "ID": "24",
+    "Word": "Set the stage for",
+    "Synonym": "Make it possible for something to happen",
+    "Meaning": "Tạo tiền đề cho, chuẩn bị cho"
+  },
+  {
+    "ID": "25",
+    "Word": "Tenement",
+    "Synonym": "Large building in poor area",
+    "Meaning": "Nhà tập thể, chung cư cũ"
+  },
+  {
+    "ID": "26",
+    "Word": "Skyscraper",
+    "Synonym": "Tower, multistory/high-rise building",
+    "Meaning": "Nhà chọc trời"
+  },
+  {
+    "ID": "27",
+    "Word": "Slum",
+    "Synonym": "Poor area in bad condition",
+    "Meaning": "Khu ổ chuột"
+  },
+  {
+    "ID": "28",
+    "Word": "Clearance",
+    "Synonym": "Removal, erasure",
+    "Meaning": "Sự giải tỏa, dọn dẹp"
+  },
+  {
+    "ID": "29",
+    "Word": "Foundation",
+    "Synonym": "Groundwork, base, ground",
+    "Meaning": "Nền móng, cơ sở"
+  },
+  {
+    "ID": "30",
+    "Word": "Fraction",
+    "Synonym": "Portion, segment, part",
+    "Meaning": "Phần nhỏ, phân số"
+  },
+  {
+    "ID": "31",
+    "Word": "Glance",
+    "Synonym": "Look, glimpse",
+    "Meaning": "Liếc nhìn, nhìn thoáng qua"
+  },
+  {
+    "ID": "32",
+    "Word": "Immigration",
+    "Synonym": "Migration, arrival, entry",
+    "Meaning": "Sự nhập cư"
+  },
+  {
+    "ID": "33",
+    "Word": "Immigrant",
+    "Synonym": "Settler, migrant, refugee",
+    "Meaning": "Người nhập cư"
+  },
+  {
+    "ID": "34",
+    "Word": "Enclave",
+    "Synonym": "Area, territory, community",
+    "Meaning": "Vùng đất biệt lập, khu dân cư riêng"
+  },
+  {
+    "ID": "35",
+    "Word": "Amenity",
+    "Synonym": "Facility, convenience, comfort",
+    "Meaning": "Tiện nghi"
+  },
+  {
+    "ID": "36",
+    "Word": "Valuable",
+    "Synonym": "Appreciated, precious, valued",
+    "Meaning": "Có giá trị, quý giá"
+  },
+  {
+    "ID": "37",
+    "Word": "Waterfront",
+    "Synonym": "Seaside, waterside, beachfront",
+    "Meaning": "Khu vực ven sông/biển"
+  },
+  {
+    "ID": "38",
+    "Word": "Wealthy",
+    "Synonym": "Rich, affluent, prosperous",
+    "Meaning": "Giàu có, thịnh vượng"
+  },
+  {
+    "ID": "39",
+    "Word": "Border",
+    "Synonym": "Be next to, run alongside, adjacent to",
+    "Meaning": "Tiếp giáp, sát cạnh"
+  },
+  {
+    "ID": "40",
+    "Word": "Distinguish",
+    "Synonym": "Analyze, differentiate, discriminate",
+    "Meaning": "Phân biệt"
+  },
+  {
+    "ID": "41",
+    "Word": "Engineering",
+    "Synonym": "Designing and building roads/machines",
+    "Meaning": "Ngành kỹ thuật"
+  },
+  {
+    "ID": "42",
+    "Word": "Efficient",
+    "Synonym": "Effective, proficient, economical",
+    "Meaning": "Hiệu quả, năng suất"
+  },
+  {
+    "ID": "43",
+    "Word": "Attempt",
+    "Synonym": "Try, make an effort, endeavor",
+    "Meaning": "Sự nỗ lực, cố gắng"
+  },
+  {
+    "ID": "44",
+    "Word": "Maximize",
+    "Synonym": "Boost, increase, expand",
+    "Meaning": "Tối đa hóa"
+  },
+  {
+    "ID": "45",
+    "Word": "Return on investment",
+    "Synonym": "Profit compared with amount invested",
+    "Meaning": "Lợi suất đầu tư (ROI)"
+  },
+  {
+    "ID": "46",
+    "Word": "Advance",
+    "Synonym": "Development, improvement, breakthrough",
+    "Meaning": "Sự tiến bộ, bước đột phá"
+  },
+  {
+    "ID": "47",
+    "Word": "Construction",
+    "Synonym": "Creation, manufacture, composition",
+    "Meaning": "Sự xây dựng"
+  },
+  {
+    "ID": "48",
+    "Word": "Skeletal",
+    "Synonym": "Of or like a frame of bones",
+    "Meaning": "Thuộc khung xương"
+  },
+  {
+    "ID": "49",
+    "Word": "Load-bearing",
+    "Synonym": "Supporting weight of building above",
+    "Meaning": "Chịu lực"
+  },
+  {
+    "ID": "50",
+    "Word": "Square footage",
+    "Synonym": "An area measured in feet",
+    "Meaning": "Tổng diện tích (tính bằng feet vuông)"
+  },
+  {
+    "ID": "51",
+    "Word": "Availability",
+    "Synonym": "Readiness, obtainability, abundance",
+    "Meaning": "Sự có sẵn"
+  },
+  {
+    "ID": "52",
+    "Word": "Throughout",
+    "Synonym": "During, the whole time",
+    "Meaning": "Xuyên suốt, khắp"
+  },
+  {
+    "ID": "53",
+    "Word": "Regression analysis",
+    "Synonym": "Statistical process",
+    "Meaning": "Phân tích hồi quy (thống kê)"
+  },
+  {
+    "ID": "54",
+    "Word": "Technical",
+    "Synonym": "Practical, mechanical, methodological",
+    "Meaning": "Thuộc về kỹ thuật"
+  },
+  {
+    "ID": "55",
+    "Word": "Probably",
+    "Synonym": "Perhaps, maybe, possibly",
+    "Meaning": "Có lẽ"
+  },
+  {
+    "ID": "56",
+    "Word": "Audience",
+    "Synonym": "Viewers, watchers, spectators",
+    "Meaning": "Khán thính giả"
+  },
+  {
+    "ID": "57",
+    "Word": "Tackle",
+    "Synonym": "Solve, stop, confront",
+    "Meaning": "Giải quyết, đối mặt"
+  },
+  {
+    "ID": "58",
+    "Word": "Myth",
+    "Synonym": "Falsehood, untruth, fiction",
+    "Meaning": "Chuyện hoang đường, lời đồn"
+  },
+  {
+    "ID": "59",
+    "Word": "Assumption",
+    "Synonym": "Supposition, hypothesis, statement",
+    "Meaning": "Giả định, giả thuyết"
+  },
+  {
+    "ID": "60",
+    "Word": "Absence",
+    "Synonym": "Lack, nonexistence, deficiency",
+    "Meaning": "Sự vắng mặt, sự thiếu hụt"
+  },
+  {
+    "ID": "61",
+    "Word": "Bedrock",
+    "Synonym": "Foundation, base",
+    "Meaning": "Nền tảng, đá nền"
+  },
+  {
+    "ID": "62",
+    "Word": "Prohibitively",
+    "Synonym": "Excessively, exorbitantly, expensively",
+    "Meaning": "(Giá cả) cao đến mức không thể mua nổi"
+  },
+  {
+    "ID": "63",
+    "Word": "Caisson",
+    "Synonym": "Underwater/underground structure",
+    "Meaning": "Thùng chìm (cấu trúc ngăn nước khi xây dựng)"
+  },
+  {
+    "ID": "64",
+    "Word": "Dig",
+    "Synonym": "To form a hole by moving soil",
+    "Meaning": "Đào (đất)"
+  },
+  {
+    "ID": "65",
+    "Word": "Water table",
+    "Synonym": "Level where you find water underground",
+    "Meaning": "Mực nước ngầm"
+  },
+  {
+    "ID": "66",
+    "Word": "Reference",
+    "Synonym": "Link to, quote",
+    "Meaning": "Tài liệu tham khảo, sự trích dẫn"
+  },
+  {
+    "ID": "67",
+    "Word": "Empirical",
+    "Synonym": "Experiential, observed, practical",
+    "Meaning": "Dựa trên kinh nghiệm/quan sát thực tế"
+  },
+  {
+    "ID": "68",
+    "Word": "Relatively",
+    "Synonym": "Comparatively, moderately, fairly",
+    "Meaning": "Tương đối"
+  },
+  {
+    "ID": "69",
+    "Word": "Boom",
+    "Synonym": "Explosion, escalation, surge",
+    "Meaning": "Sự bùng nổ, tăng vọt"
+  },
+  {
+    "ID": "70",
+    "Word": "Lengthy",
+    "Synonym": "Long, extensive, long-lasting",
+    "Meaning": "Dài dòng, kéo dài"
+  },
+  {
+    "ID": "71",
+    "Word": "Undergraduate",
+    "Synonym": "College/university student",
+    "Meaning": "Sinh viên chưa tốt nghiệp"
+  },
+  {
+    "ID": "72",
+    "Word": "Exuberance",
+    "Synonym": "Lavishness",
+    "Meaning": "Sự dồi dào, sự hồ hởi"
+  },
+  {
+    "ID": "73",
+    "Word": "Viability",
+    "Synonym": "Feasibility, practicality, capability",
+    "Meaning": "Tính khả thi"
+  },
+  {
+    "ID": "74",
+    "Word": "Credit",
+    "Synonym": "Method of paying later",
+    "Meaning": "Tín dụng, phương thức trả sau"
+  },
+  {
+    "ID": "75",
+    "Word": "Estimate",
+    "Synonym": "Assess, guess, value",
+    "Meaning": "Ước tính, đánh giá"
+  },
+  {
+    "ID": "76",
+    "Word": "Impressive",
+    "Synonym": "Striking, remarkable, notable",
+    "Meaning": "Ấn tượng, đáng chú ý"
+  },
+  {
+    "ID": "77",
+    "Word": "Predict",
+    "Synonym": "Forecast, foresee, expect",
+    "Meaning": "Dự đoán"
+  },
+  {
+    "ID": "78",
+    "Word": "Reverse",
+    "Synonym": "Opposite, contrary",
+    "Meaning": "Đảo ngược, ngược lại"
+  },
+  {
+    "ID": "79",
+    "Word": "Epilogue",
+    "Synonym": "Speech/text at the end of a play/book",
+    "Meaning": "Lời kết, đoạn kết"
+  },
+  {
+    "ID": "80",
+    "Word": "Suggestion",
+    "Synonym": "Hint, proposal, implication",
+    "Meaning": "Sự gợi ý, đề xuất"
+  },
+  {
+    "ID": "81",
+    "Word": "Forward",
+    "Synonym": "Ahead, further, progress",
+    "Meaning": "Tiến về phía trước"
+  }
+]
