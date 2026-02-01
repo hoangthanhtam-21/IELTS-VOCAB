@@ -64,7 +64,7 @@
     </div>
 
     <script>
-        const apiKey = ""; 
+        const apiKey = "AIzaSyAVOzANDNlqqCSiDNDPPjn36JidDEVOQGo"; 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'ielts-vocab-master';
 
         let state = {
@@ -98,10 +98,10 @@
                 
                 // MAP DATA FROM NEW JSON STRUCTURE (Word, Meaning, Synonym)
                 state.vocabBank = data.vocab.map(item => ({
-                    word: item.Word || item.word,
-                    definition: item.Meaning || item.definition,
-                    examples: item.Synonym || item.examples,
-                    id: item.ID || item.id
+                    word: item.word || item.word,
+                    definition: item.meaning || item.definition,
+                    examples: item.synonym || item.examples,
+                    id: item.id || item.id
                 }));
                 
                 state.readingLevels = data.levels;
