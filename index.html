@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Vocab Master</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .bg-main {
+            background-image: url('https://static.vecteezy.com/system/resources/thumbnails/069/144/917/small/colorful-school-supplies-background-image-2023-vector.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        .animate-pop {
+            animation: pop 0.3s ease-out;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.98); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .heart-beat {
+            animation: beat 1s infinite;
+        }
+
+        @keyframes beat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+    </style>
+</head>
+<body class="bg-main min-h-screen flex items-center justify-center p-4 overflow-hidden">
+
+    <div id="app" class="w-full flex justify-center items-center min-h-[600px] max-h-screen">
+        <!-- Content injected via JavaScript -->
+    </div>
+
+    <script>
+        const apiKey = "";
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'ielts-vocab-master';
+
+        // --- DATA ---
+        const VOCAB_BANK = [
+            { word: "Façade", definition: "Mặt tiền của tòa nhà", examples: "The shop's glass façade reflects the street." },
+            { word: "Sustainability", definition: "Sự bền vững (về môi trường)", examples: "Architects are focusing on environmental sustainability." },
+            { word: "Aesthetic", definition: "Tính thẩm mỹ", examples: "The building has a unique modern aesthetic." },
+            { word: "Reinforced concrete", definition: "Bê tông cốt thép", examples: "High-rises rely on reinforced concrete for stability." },
+            { word: "Skyscraper", definition: "Nhà chọc trời", examples: "The city is famous for its towering skyscrapers." },
+            { word: "Urban sprawl", definition: "Sự đô thị hóa tràn lan", examples: "Urban sprawl often leads to loss of green spaces." },
+            { word: "Infrastructure", definition: "Cơ sở hạ tầng", examples: "The city needs better transportation infrastructure." },
+            { word: "Brutalist", definition: "Kiến trúc thô mộc", examples: "A massive, grey Brutalist library stands in the center." },
+            { word: "Renovate", definition: "Cải tạo, nâng cấp", examples: "They plan to renovate the old opera house." },
+            { word: "Symmetry", definition: "Sự đối xứng", examples: "Classical architecture is known for its perfect symmetry." },
+            { word: "Atrium", definition: "Sân trong (thường có mái kính)", examples: "The hotel features a stunning glass atrium." },
+            { word: "Ventilation", definition: "Sự thông gió", examples: "Large windows provide excellent natural ventilation." },
+            { word: "Gothic", definition: "Kiến trúc Goth", examples: "The cathedral is a masterpiece of Gothic architecture." },
+            { word: "Column", definition: "Cột trụ", examples: "Ancient Greek temples used marble columns." },
+            { word: "Blueprint", definition: "Bản thiết kế chi tiết", examples: "The architect presented the blueprints to the client." }
+        ];
+
+        const READING_LEVELS = [
+            {
+                id: 1,
+                title: "The Garden Villa (Lvl 1 - Narrative)",
+                wordCount: "135 words",
+                genre: "Descriptive/Narrative",
+                content: "Last summer, I visited a stunning garden villa that perfectly illustrates modern sustainability. As I approached, the glass façade reflected the surrounding greenery, creating a seamless blend between nature and structure. The owner decided to renovate this old estate to meet current eco-friendly standards. Inside, the large atrium was filled with sunlight, providing a warm and open atmosphere. The architect chose natural ventilation instead of air conditioning, using large windows to catch the breeze. Although the house used reinforced concrete for safety, its wooden finishes maintained a clean, modern aesthetic. Walking through the halls, I noticed the perfect symmetry of the columns in the main corridor. It felt more like a sanctuary than a house, proving that even heavy materials can feel light when the blueprint is well-designed.",
+                summary: "The author visited a villa that focuses on (1)__________. The building's (2)__________ reflects the trees around it. Inside, there is a sunny (3)__________ and the building uses (4)__________ to stay cool. The structure uses (5)__________ and maintains a modern (6)__________.",
+                summaryAnswers: ["sustainability", "façade", "atrium", "ventilation", "reinforced concrete", "aesthetic"],
+                comprehension: [
+                    { q: "The villa was built recently from scratch.", type: "TF", a: "False", evidence: "The owner decided to renovate this old estate" },
+                    { q: "The house uses air conditioning for cooling.", type: "TF", a: "False", evidence: "chose natural ventilation instead of air conditioning" },
+                    { q: "The villa combines modern materials with natural beauty.", type: "TF", a: "True", evidence: "creating a seamless blend between nature and structure" },
+                    { q: "The owner did not want to change anything about the estate.", type: "TF", a: "False", evidence: "decided to renovate this old estate to meet current eco-friendly standards" }
+                ],
+                wordChoice: [
+                    { q: "The building's _____ was made of large glass panels.", options: ["Façade", "Infrastructure"], a: "Façade" },
+                    { q: "We need better _____ to keep the room cool in summer.", options: ["Ventilation", "Symmetry"], a: "Ventilation" },
+                    { q: "They plan to _____ the old museum next year.", options: ["Renovate", "Sprawl"], a: "Renovate" },
+                    { q: "Classical buildings often show perfect _____.", options: ["Symmetry", "Sustainability"], a: "Symmetry" },
+                    { q: "This villa has a very minimalist _____.", options: ["Aesthetic", "Column"], a: "Aesthetic" }
+                ]
+            },
+            {
+                id: 2,
+                title: "Vertical Living (Lvl 2 - Argumentative)",
+                wordCount: "255 words",
+                genre: "Argumentative/Opinion",
+                content: "In many developing nations, the rapid growth of cities has led to a destructive urban sprawl, consuming valuable farmland and forests. Some experts argue that the only solution is to build upwards, replacing low-rise housing with massive skyscrapers. From an environmental perspective, high-density living is superior because it requires less infrastructure per person. However, critics point out that the aesthetic of many modern towers is cold and uninviting, often referred to as 'concrete jungles'. To combat this, new blueprints often incorporate green spaces and large glass atriums to humanize the design. Moreover, the use of reinforced concrete allows these structures to reach incredible heights safely, but it also demands sophisticated ventilation systems to maintain air quality. In my opinion, we must prioritize sustainability over pure profit. Instead of building endless rows of identical houses, we should renovate existing urban centers and focus on vertical development. While some prefer the classic Gothic style, modern city life requires a functional approach that balances technology and comfort. If we do not address how we use our land, the infrastructure of our future cities will collapse under the weight of an ever-growing population. Symmetry and beauty must co-exist with density to create livable spaces for the next generation. The transition to vertical cities is not just a choice; it is a necessity for our planet's survival.",
+                summary: "The text argues that (1)__________ is a major problem for cities. Building (2)__________ is seen as a better way to use land. This vertical growth requires less (3)__________ but critics dislike the (4)__________ of many towers. To improve this, designers add (5)__________ and use (6)__________ for safety. We should focus on (7)__________ and (8)__________ old centers.",
+                summaryAnswers: ["urban sprawl", "skyscrapers", "infrastructure", "aesthetic", "atriums", "reinforced concrete", "sustainability", "renovate"],
+                comprehension: [
+                    { q: "What is the main advantage of vertical cities mentioned in the text?", type: "MC", options: ["They look like Gothic cathedrals", "They require less infrastructure per person", "They are cheaper to build", "They don't need ventilation"], a: "They require less infrastructure per person", evidence: "high-density living is superior because it requires less infrastructure per person" },
+                    { q: "What do designers add to towers to 'humanize' them?", type: "MC", options: ["Gothic columns", "Green spaces and atriums", "More reinforced concrete", "Blueprints on the walls"], a: "Green spaces and atriums", evidence: "incorporate green spaces and large glass atriums to humanize the design" },
+                    { q: "The author suggests that building horizontally is...", type: "MC", options: ["A necessity for survival", "Better than building skyscrapers", "A waste of valuable land", "Cheaper for infrastructure"], a: "A waste of valuable land", evidence: "destructive urban sprawl, consuming valuable farmland and forests" }
+                ],
+                wordChoice: [
+                    { q: "Rapid city growth often results in _____.", options: ["Urban sprawl", "Renovation"], a: "Urban sprawl" },
+                    { q: "The _____ of a skyscraper must be extremely strong.", options: ["Infrastructure", "Aesthetic"], a: "Infrastructure" },
+                    { q: "This tower has a glass _____ that lets in light.", options: ["Atrium", "Column"], a: "Atrium" },
+                    { q: "I love the _____ of ancient Greek temples.", options: ["Aesthetic", "Blueprint"], a: "Aesthetic" },
+                    { q: "Building high requires advanced _____ for safety.", options: ["Reinforced concrete", "Symmetry"], a: "Reinforced concrete" }
+                ]
+            }
+        ];
+
+        // --- STATE ---
+        let state = {
+            view: 'topics',
+            lastView: null,
+            score: 0,
+            timeLeft: 300,
+            lives: 3,
+            consecutiveWrong: 0,
+            masteredWords: new Set(),
+            currentQuizIndex: 0,
+            quizPool: [],
+            quizFeedback: null,
+            selectedReadingId: null,
+            readingSubmitted: false,
+            readingAnswers: { summary: {}, comp: {}, word: {} },
+            shuffledWordChoices: [], // Danh sách câu hỏi word choice đã trộn đáp án
+            activeTooltip: null,
+            timerInterval: null
+        };
+
+        // --- HELPERS ---
+        const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
+
+        const playSound = (type) => {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            if (type === 'correct') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+            } else {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(220, ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(110, ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+            }
+            osc.start(); osc.stop(ctx.currentTime + (type === 'correct' ? 0.1 : 0.2));
+        };
+
+        // --- RENDER ---
+        const render = () => {
+            const app = document.getElementById('app');
+            
+            let scrollPos = 0;
+            const scrollContainer = document.getElementById('reading-scroll-container');
+            if (scrollContainer) {
+                scrollPos = scrollContainer.scrollTop;
+            }
+
+            const isNewView = state.view !== state.lastView;
+            state.lastView = state.view;
+
+            app.innerHTML = '';
+            let content;
+            switch (state.view) {
+                case 'topics': content = createTopicSelection(); break;
+                case 'menu': content = createMenu(); break;
+                case 'quiz': content = createQuiz(); break;
+                case 'reading': content = createReadingView(); break;
+                case 'listening': content = createListeningView(); break;
+                case 'result': content = createResultView(); break;
+            }
+
+            if (isNewView) {
+                content.classList.add('animate-pop');
+            }
+
+            app.appendChild(content);
+
+            const newScrollContainer = document.getElementById('reading-scroll-container');
+            if (newScrollContainer) {
+                newScrollContainer.scrollTop = scrollPos;
+            }
+        };
+
+        const createTopicSelection = () => {
+            const container = document.createElement('div');
+            container.className = "flex flex-col gap-6 p-8 bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl max-w-4xl w-full border border-white/20";
+            
+            container.innerHTML = `
+                <div class="text-center mb-4">
+                    <h1 class="text-4xl font-black text-slate-800 tracking-tighter mb-2">IELTS Vocab Master</h1>
+                    <p class="text-slate-500 font-medium italic text-sm">Select a topic to start your vocabulary journey</p>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="topic-grid"></div>
+            `;
+
+            const topics = [
+                { id: 'architecture', name: 'Architecture', active: true, icon: 'fa-city text-indigo-600' },
+                { id: 'tech', name: 'Technology', active: false, icon: 'fa-microchip text-slate-400' },
+                { id: 'nature', name: 'Environment', active: false, icon: 'fa-leaf text-slate-400' },
+                { id: 'business', name: 'Business', active: false, icon: 'fa-briefcase text-slate-400' },
+                { id: 'health', name: 'Health', active: false, icon: 'fa-heart text-slate-400' },
+                { id: 'culture', name: 'Culture', active: false, icon: 'fa-landmark text-slate-400' },
+                { id: 'education', name: 'Education', active: false, icon: 'fa-user-graduate text-slate-400' },
+                { id: 'travel', name: 'Travel', active: false, icon: 'fa-plane text-slate-400' },
+            ];
+
+            const grid = container.querySelector('#topic-grid');
+            topics.forEach(t => {
+                const btn = document.createElement('button');
+                btn.className = `group relative p-6 rounded-2xl border-2 transition-all duration-300 flex flex-col items-center gap-3 h-40 justify-center
+                    ${t.active ? 'bg-white border-indigo-100 shadow-lg hover:border-indigo-500 hover:shadow-indigo-200 hover:-translate-y-1' : 'bg-slate-50/50 border-slate-100 opacity-60 grayscale cursor-not-allowed'}`;
+                btn.innerHTML = `
+                    <div class="p-3 rounded-xl transition-colors ${t.active ? 'bg-indigo-50 group-hover:bg-indigo-100' : 'bg-slate-100'}">
+                        <i class="fas ${t.icon} text-2xl"></i>
+                    </div>
+                    <span class="font-bold ${t.active ? 'text-slate-800' : 'text-slate-400'}">${t.name}</span>
+                    ${!t.active ? '<div class="absolute top-2 right-2 text-slate-300"><i class="fas fa-lock text-xs"></i></div>' : ''}
+                    ${!t.active ? '<span class="text-[10px] font-black uppercase text-slate-400 tracking-widest mt-1">Coming soon</span>' : ''}
+                `;
+                if (t.active) btn.onclick = () => { state.view = 'menu'; render(); };
+                grid.appendChild(btn);
+            });
+
+            return container;
+        };
+
+        const createMenu = () => {
+            const container = document.createElement('div');
+            container.className = "flex flex-col gap-6 p-8 text-center bg-white rounded-3xl shadow-xl max-w-md w-full border border-slate-100";
+            container.innerHTML = `
+                <div class="flex items-center gap-2 mb-2">
+                    <button onclick="state.view = 'topics'; render();" class="p-2 hover:bg-slate-100 rounded-xl text-slate-400 transition-colors">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span class="text-xs font-black text-indigo-400 uppercase tracking-widest">Topic: Architecture</span>
+                </div>
+                <div class="flex justify-center mb-2">
+                    <div class="w-24 h-24 bg-white rounded-2xl overflow-hidden shadow-sm flex items-center justify-center p-1 border border-slate-50">
+                        <img src="logo.jpg" onerror="this.src='https://via.placeholder.com/100/6366f1/ffffff?text=IELTS'" alt="Logo" class="w-full h-full object-contain">
+                    </div>
+                </div>
+                <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight">Architecture</h2>
+                <p class="text-slate-500 text-sm italic">Infrastructure, Brutalism, Blueprint...</p>
+                
+                <button onclick="startQuiz()" class="py-4 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.02]">
+                    <i class="fas fa-bolt"></i>
+                    <span>Vocab Practice (5 Mins)</span>
+                </button>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="state.view = 'reading'; render();" class="p-4 bg-emerald-50 text-emerald-700 border-2 border-emerald-100 rounded-2xl font-semibold hover:bg-emerald-100 flex flex-col items-center gap-2 transition-all hover:scale-[1.02]">
+                        <i class="fas fa-book"></i>
+                        <span>Reading</span>
+                    </button>
+                    <button onclick="state.view = 'listening'; render();" class="p-4 bg-amber-50 text-amber-700 border-2 border-amber-100 rounded-2xl font-semibold hover:bg-amber-100 flex flex-col items-center gap-2 transition-all hover:scale-[1.02]">
+                        <i class="fas fa-headphones"></i>
+                        <span>Listening</span>
+                    </button>
+                </div>
+            `;
+            return container;
+        };
+
+        const startQuiz = () => {
+            state.quizPool = VOCAB_BANK.map(v => {
+                const distractors = VOCAB_BANK.filter(x => x.word.toLowerCase() !== v.word.toLowerCase()).map(x => x.definition);
+                return { ...v, streak: 0, fixedOptions: shuffle([...shuffle(distractors).slice(0, 3), v.definition]) };
+            });
+            state.quizPool = shuffle(state.quizPool);
+            state.score = 0;
+            state.timeLeft = 300;
+            state.lives = 3;
+            state.consecutiveWrong = 0;
+            state.masteredWords = new Set();
+            state.currentQuizIndex = 0;
+            state.view = 'quiz';
+            startTimer();
+            render();
+        };
+
+        const startTimer = () => {
+            if (state.timerInterval) clearInterval(state.timerInterval);
+            state.timerInterval = setInterval(() => {
+                state.timeLeft--;
+                if (state.timeLeft <= 0) {
+                    clearInterval(state.timerInterval);
+                    finishGame();
+                } else {
+                    const timerDisp = document.getElementById('timer-display');
+                    if (timerDisp) {
+                        timerDisp.innerText = `${Math.floor(state.timeLeft / 60)}:${(state.timeLeft % 60).toString().padStart(2, '0')}`;
+                        if (state.timeLeft < 30) timerDisp.classList.add('text-red-500', 'animate-pulse');
+                    }
+                }
+            }, 1000);
+        };
+
+        const createQuiz = () => {
+            const item = state.quizPool[state.currentQuizIndex];
+            const container = document.createElement('div');
+            container.className = "bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full h-[550px] flex flex-col justify-between relative";
+            
+            const timerPercent = (state.timeLeft / 300) * 100;
+            
+            container.innerHTML = `
+                <div class="absolute top-0 left-0 h-1.5 bg-indigo-600 transition-all duration-1000" style="width: ${timerPercent}%"></div>
+                ${state.quizFeedback?.showLifeLost ? `
+                    <div class="absolute inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-sm rounded-3xl animate-pop">
+                        <div class="bg-red-600 text-white px-8 py-4 rounded-2xl shadow-2xl flex flex-col items-center gap-2 border-4 border-white">
+                            <i class="fas fa-heart text-4xl heart-beat"></i>
+                            <span class="text-2xl font-black uppercase tracking-tighter">Life Lost!</span>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div>
+                    <div class="flex justify-between items-center mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Score</span>
+                                <span class="text-indigo-600 text-xl font-black">${state.score}</span>
+                            </div>
+                            <div class="flex gap-1 ml-4" id="lives-container"></div>
+                        </div>
+                        <div id="timer-display" class="text-xl font-mono font-bold text-slate-600">
+                            ${Math.floor(state.timeLeft / 60)}:${(state.timeLeft % 60).toString().padStart(2, '0')}
+                        </div>
+                    </div>
+                    <div class="text-center mb-8">
+                        <h2 class="text-4xl font-black text-slate-800 mb-3 capitalize tracking-tight">${item.word}</h2>
+                        <div class="flex justify-center gap-2">
+                            ${[1, 2, 3].map(i => `<div class="h-2.5 w-10 rounded-full ${item.streak >= i ? 'bg-emerald-500' : 'bg-slate-100'}"></div>`).join('')}
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-2 uppercase font-bold tracking-tight">Master: 3 Correct in a row</p>
+                    </div>
+                    <div class="grid gap-2.5" id="options-container"></div>
+                </div>
+                <div class="mt-4 flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase">
+                    <span>Mastered: ${state.masteredWords.size} / ${VOCAB_BANK.length}</span>
+                    <button onclick="clearInterval(state.timerInterval); state.view = 'menu'; render();" class="hover:text-red-500 underline transition-colors">Quit</button>
+                </div>
+            `;
+
+            const livesCont = container.querySelector('#lives-container');
+            for(let i=1; i<=3; i++) {
+                const heart = document.createElement('i');
+                heart.className = `fas fa-heart transition-all duration-500 ${state.lives >= i ? 'text-red-500' : 'text-slate-200 scale-90 opacity-50'}`;
+                livesCont.appendChild(heart);
+            }
+
+            const optsCont = container.querySelector('#options-container');
+            item.fixedOptions.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.disabled = !!state.quizFeedback;
+                let btnStyle = "border-slate-100 hover:border-indigo-200 hover:bg-slate-50";
+                
+                if (state.quizFeedback) {
+                    if (idx === state.quizFeedback.correctIndex) {
+                        btnStyle = "bg-emerald-500 border-emerald-500 text-white shadow-lg";
+                    } else if (!state.quizFeedback.isCorrect && idx === state.quizFeedback.selectedIndex) {
+                        btnStyle = "bg-red-500 border-red-500 text-white shadow-lg";
+                    } else {
+                        btnStyle = "opacity-40 grayscale";
+                    }
+                }
+
+                btn.className = `p-3.5 rounded-2xl text-left font-medium border-2 transition-all duration-300 ${btnStyle}`;
+                btn.innerText = opt;
+                btn.onclick = () => handleQuizAnswer(idx);
+                optsCont.appendChild(btn);
+            });
+
+            return container;
+        };
+
+        const handleQuizAnswer = (idx) => {
+            const item = state.quizPool[state.currentQuizIndex];
+            const correctIdx = item.fixedOptions.indexOf(item.definition);
+            const isCorrect = idx === correctIdx;
+
+            playSound(isCorrect ? 'correct' : 'wrong');
+
+            let showLifeLost = false;
+            if (isCorrect) {
+                state.consecutiveWrong = 0;
+                state.score += (state.score >= 50 ? 10 : 5);
+                item.streak++;
+                if (item.streak >= 3) state.masteredWords.add(item.word);
+            } else {
+                state.consecutiveWrong++;
+                if (state.consecutiveWrong >= 2) {
+                    state.lives--;
+                    state.consecutiveWrong = 0;
+                    showLifeLost = true;
+                }
+                state.score = Math.max(0, state.score - 2);
+                item.streak = 0;
+            }
+
+            state.quizFeedback = { selectedIndex: idx, correctIndex: correctIdx, isCorrect, showLifeLost };
+            render();
+
+            setTimeout(() => {
+                state.quizFeedback = null;
+                if (state.lives <= 0) {
+                    clearInterval(state.timerInterval);
+                    finishGame("GAME OVER");
+                    return;
+                }
+
+                if (state.masteredWords.size === VOCAB_BANK.length) {
+                    clearInterval(state.timerInterval);
+                    finishGame();
+                    return;
+                }
+
+                state.currentQuizIndex = (state.currentQuizIndex + 1) % state.quizPool.length;
+                while (state.masteredWords.has(state.quizPool[state.currentQuizIndex].word)) {
+                    state.currentQuizIndex = (state.currentQuizIndex + 1) % state.quizPool.length;
+                }
+                render();
+            }, showLifeLost ? 1800 : 1200);
+        };
+
+        const finishGame = (forcedRank) => {
+            state.view = 'result';
+            let rank = forcedRank || "Rookie";
+            let color = forcedRank ? "text-red-600" : "text-slate-500";
+            if (!forcedRank) {
+                if (state.score > 500) { rank = "Legend 🎇"; color = "text-purple-600 font-bold"; }
+                else if (state.score > 300) { rank = "Master 🏆"; color = "text-orange-500"; }
+                else if (state.score > 100) { rank = "Hunter 🏹"; color = "text-blue-500"; }
+            }
+            state.rankInfo = { name: rank, color };
+            render();
+        };
+
+        const createResultView = () => {
+            const container = document.createElement('div');
+            container.className = "bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center border border-slate-100 animate-pop";
+            container.innerHTML = `
+                <div class="flex justify-center mb-4">
+                    <div class="p-4 bg-amber-100 rounded-full text-amber-600">
+                        <i class="fas fa-award text-5xl"></i>
+                    </div>
+                </div>
+                <h2 class="text-xl font-bold text-slate-500 uppercase tracking-widest">Session Results</h2>
+                <div class="text-5xl my-6 ${state.rankInfo.color} tracking-tighter">${state.rankInfo.name}</div>
+                <div class="grid grid-cols-2 gap-4 mb-8">
+                    <div class="bg-indigo-50 p-6 rounded-2xl">
+                        <div class="text-3xl font-black text-indigo-700">${state.score}</div>
+                        <div class="text-[10px] text-indigo-400 uppercase font-black">Score</div>
+                    </div>
+                    <div class="bg-emerald-50 p-6 rounded-2xl">
+                        <div class="text-3xl font-black text-emerald-700">${state.masteredWords.size}</div>
+                        <div class="text-[10px] text-emerald-400 uppercase font-black">Mastered</div>
+                    </div>
+                </div>
+                <button onclick="state.view = 'menu'; render();" class="w-full py-4 bg-slate-800 text-white rounded-2xl font-bold hover:bg-slate-900 transition-all active:scale-95 shadow-lg">Back to Menu</button>
+            `;
+            return container;
+        };
+
+        const createReadingView = () => {
+            if (!state.selectedReadingId) {
+                const container = document.createElement('div');
+                container.className = "bg-white rounded-3xl shadow-xl p-8 max-w-2xl w-full h-[600px] overflow-y-auto custom-scrollbar";
+                container.innerHTML = `
+                    <div class="flex items-center gap-3 mb-6">
+                        <button onclick="state.view = 'menu'; render();" class="p-2 hover:bg-slate-100 rounded-xl transition-colors"><i class="fas fa-chevron-left"></i></button>
+                        <h2 class="text-2xl font-bold">Architecture Reading Practice</h2>
+                    </div>
+                    <div class="grid gap-4" id="reading-levels-grid"></div>
+                `;
+                const grid = container.querySelector('#reading-levels-grid');
+                READING_LEVELS.forEach(l => {
+                    const btn = document.createElement('button');
+                    btn.className = "flex items-center justify-between p-6 border-2 border-slate-100 rounded-2xl hover:border-indigo-500 hover:bg-indigo-50 group transition-all";
+                    btn.innerHTML = `
+                        <div class="text-left">
+                            <div class="font-bold text-lg text-slate-800 group-hover:text-indigo-700">${l.title}</div>
+                            <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">${l.genre} • ${l.wordCount}</div>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-slate-50 group-hover:bg-indigo-100 flex items-center justify-center text-indigo-600 transition-colors">→</div>
+                    `;
+                    btn.onclick = () => { 
+                        state.selectedReadingId = l.id; 
+                        state.readingAnswers = { summary: {}, comp: {}, word: {} };
+                        state.readingSubmitted = false;
+                        // --- TRỘN ĐÁP ÁN KHI CHỌN CẤP ĐỘ ---
+                        state.shuffledWordChoices = l.wordChoice.map(q => ({
+                            ...q,
+                            shuffledOptions: shuffle([...q.options])
+                        }));
+                        render(); 
+                    };
+                    grid.appendChild(btn);
+                });
+                return container;
+            }
+
+            const level = READING_LEVELS.find(l => l.id === state.selectedReadingId);
+            const container = document.createElement('div');
+            container.className = "bg-white rounded-3xl shadow-xl w-full max-w-7xl h-[95vh] flex flex-col overflow-hidden";
+            
+            container.innerHTML = `
+                <div class="flex justify-between items-center px-8 py-4 border-b shrink-0 bg-white z-10">
+                    <div class="flex items-center gap-4">
+                        <button onclick="state.selectedReadingId = null; render();" class="p-2 hover:bg-slate-100 rounded-xl transition-colors"><i class="fas fa-chevron-left"></i></button>
+                        <div>
+                            <h2 class="text-2xl font-black text-slate-800 uppercase tracking-tight">${level.title}</h2>
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">${level.genre}</span>
+                        </div>
+                    </div>
+                    <button onclick="state.selectedReadingId = null; render();" class="text-slate-400 hover:text-red-500 font-bold px-4 py-2 hover:bg-red-50 rounded-xl transition-colors">Close ✕</button>
+                </div>
+                <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8" id="reading-scroll-container">
+                    <div class="flex flex-col lg:flex-row gap-8">
+                        <div class="lg:w-1/2 bg-slate-50 rounded-3xl p-8 border border-slate-100 shadow-inner" id="article-content"></div>
+                        <div class="lg:w-1/2 space-y-8" id="questions-content"></div>
+                    </div>
+                    <div class="pt-8 border-t border-slate-100" id="word-choice-content"></div>
+                    <div class="pt-10 pb-24" id="reading-footer"></div>
+                </div>
+            `;
+
+            // Article Content with Highlighting
+            const article = container.querySelector('#article-content');
+            article.innerHTML = `<div class="flex justify-between items-center mb-4 text-xs font-black text-indigo-400 uppercase tracking-widest">
+                <div class="flex items-center gap-2"><i class="fas fa-book-open"></i> <span>English Article</span></div>
+                ${state.readingSubmitted ? '<span class="text-[10px] bg-yellow-200 px-2 py-1 rounded-full font-bold text-yellow-700">Evidence highlighted</span>' : ''}
+            </div>`;
+            const contentDiv = document.createElement('div');
+            contentDiv.className = "text-slate-700 leading-relaxed text-lg font-serif select-none";
+            
+            const sentences = level.content.split(/(?<=[.!?])\s+/);
+            sentences.forEach((sentence, sIdx) => {
+                const isEvidence = state.readingSubmitted && level.comprehension.some(q => sentence.toLowerCase().includes(q.evidence.toLowerCase()));
+                const span = document.createElement('span');
+                if (isEvidence) span.className = "bg-yellow-200 rounded px-1 transition-colors duration-1000";
+                
+                const words = sentence.split(/(\s+)/);
+                words.forEach((w, i) => {
+                    const cleanWord = w.replace(/[.,;:!?()]/g, '').toLowerCase();
+                    const vocabMatch = VOCAB_BANK.find(v => {
+                        const vLower = v.word.toLowerCase();
+                        return vLower === cleanWord || (vLower.includes(" ") && sentence.toLowerCase().includes(vLower) && vLower.split(" ")[0] === cleanWord);
+                    });
+
+                    const wordId = `word-${sIdx}-${i}`;
+                    if (vocabMatch) {
+                        const vSpan = document.createElement('span');
+                        vSpan.className = "relative inline-block group";
+                        vSpan.innerHTML = `<span class="font-black text-indigo-600 cursor-help border-b-2 border-indigo-100 hover:bg-indigo-200 transition-colors px-0.5">${w}</span>`;
+                        vSpan.onclick = (e) => {
+                            e.stopPropagation();
+                            toggleTooltip(wordId, vocabMatch, vSpan);
+                        };
+                        span.appendChild(vSpan);
+                    } else {
+                        span.appendChild(document.createTextNode(w));
+                    }
+                });
+                span.appendChild(document.createTextNode(' '));
+                contentDiv.appendChild(span);
+            });
+            article.appendChild(contentDiv);
+
+            // Summary
+            const questions = container.querySelector('#questions-content');
+            const summaryDiv = document.createElement('div');
+            summaryDiv.innerHTML = `<h3 class="text-xs font-black text-emerald-500 uppercase tracking-widest mb-3 flex items-center gap-2"><i class="fas fa-bolt"></i> <span>I. Summary</span></h3>`;
+            const summaryBox = document.createElement('div');
+            summaryBox.className = "text-base leading-relaxed text-slate-700 p-6 bg-emerald-50/50 rounded-2xl italic border border-emerald-100";
+            
+            const summaryParts = level.summary.split(/(\(\d+\)__________)/);
+            let summaryInputCount = 0;
+            summaryParts.forEach(p => {
+                if (p.match(/\(\d+\)__________/)) {
+                    const idx = summaryInputCount++;
+                    const input = document.createElement('input');
+                    input.type = "text";
+                    input.placeholder = `(${idx + 1})`;
+                    input.disabled = state.readingSubmitted;
+                    input.value = state.readingAnswers.summary[idx] || '';
+                    input.className = `border-b-2 px-1 text-center font-bold outline-none transition-all w-32 bg-transparent placeholder:font-normal placeholder:text-xs mx-1`;
+                    if (state.readingSubmitted) {
+                        const isCorrect = input.value.toLowerCase().trim() === level.summaryAnswers[idx].toLowerCase();
+                        input.classList.add(isCorrect ? 'border-emerald-500' : 'border-red-400', isCorrect ? 'text-emerald-600' : 'text-red-500');
+                    } else {
+                        input.classList.add('border-indigo-300', 'focus:border-indigo-600');
+                    }
+                    input.oninput = (e) => { state.readingAnswers.summary[idx] = e.target.value; };
+                    summaryBox.appendChild(input);
+                } else {
+                    summaryBox.appendChild(document.createTextNode(p));
+                }
+            });
+            summaryDiv.appendChild(summaryBox);
+            
+            if (state.readingSubmitted) {
+                const key = document.createElement('div');
+                key.className = "mt-4 p-4 bg-white border-2 border-emerald-100 rounded-xl";
+                key.innerHTML = `<h4 class="text-xs font-black text-emerald-600 uppercase mb-2">Correct Answers:</h4><div class="grid grid-cols-2 gap-2">
+                    ${level.summaryAnswers.map((ans, i) => `<div class="text-sm"><span class="font-bold text-slate-400 mr-2">(${i+1})</span><span class="text-emerald-700 font-semibold">${ans}</span></div>`).join('')}
+                </div>`;
+                summaryDiv.appendChild(key);
+            }
+            questions.appendChild(summaryDiv);
+
+            // Comprehension
+            const compDiv = document.createElement('div');
+            compDiv.innerHTML = `<h3 class="text-xs font-black text-amber-500 uppercase tracking-widest mb-3 flex items-center gap-2"><i class="fas fa-info-circle"></i> <span>II. Comprehension</span></h3>`;
+            const compList = document.createElement('div');
+            compList.className = "space-y-4";
+            level.comprehension.forEach((q, i) => {
+                const qBox = document.createElement('div');
+                const isCorrect = state.readingSubmitted && state.readingAnswers.comp[i] === q.a;
+                qBox.className = `p-5 bg-white border border-slate-100 rounded-2xl shadow-sm transition-all ${isCorrect ? 'border-emerald-200 bg-emerald-50/20' : ''}`;
+                qBox.innerHTML = `<p class="font-bold text-slate-800 mb-4">${i+1}. ${q.q}</p>`;
+                const btnCont = document.createElement('div');
+                btnCont.className = q.type === 'TF' ? "flex gap-2" : "grid gap-2";
+                
+                const opts = q.type === 'TF' ? ['True', 'False', 'Not Given'] : q.options;
+                opts.forEach(o => {
+                    const btn = document.createElement('button');
+                    btn.disabled = state.readingSubmitted;
+                    btn.className = `px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition-all ${state.readingAnswers.comp[i] === o ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-100 hover:border-indigo-200'}`;
+                    btn.innerText = o;
+                    btn.onclick = () => { state.readingAnswers.comp[i] = o; render(); };
+                    btnCont.appendChild(btn);
+                });
+                qBox.appendChild(btnCont);
+                if (state.readingSubmitted) {
+                    qBox.innerHTML += `<div class="mt-3 text-xs font-bold ${isCorrect ? 'text-emerald-600' : 'text-red-500'}">${isCorrect ? '✓ Correct' : `✗ Answer: ${q.a}`}</div>`;
+                }
+                compList.appendChild(qBox);
+            });
+            compDiv.appendChild(compList);
+            questions.appendChild(compDiv);
+
+            // Word Choice (SỬ DỤNG state.shuffledWordChoices)
+            const wcDiv = container.querySelector('#word-choice-content');
+            wcDiv.innerHTML = `<h3 class="text-xs font-black text-indigo-400 uppercase tracking-widest mb-6 flex items-center gap-2"><i class="fas fa-bolt"></i> <span>III. Vocabulary Practice</span></h3>`;
+            const wcGrid = document.createElement('div');
+            wcGrid.className = "grid grid-cols-1 md:grid-cols-2 gap-4";
+            state.shuffledWordChoices.forEach((q, i) => {
+                const qBox = document.createElement('div');
+                qBox.className = "p-6 bg-slate-50 border border-slate-100 rounded-2xl shadow-sm";
+                qBox.innerHTML = `<p class="font-bold text-slate-700 mb-4 italic leading-relaxed">"${q.q}"</p>`;
+                const btnGrid = document.createElement('div');
+                btnGrid.className = "flex gap-3";
+                q.shuffledOptions.forEach(o => {
+                    const btn = document.createElement('button');
+                    btn.disabled = state.readingSubmitted;
+                    let btnStyle = "bg-white border-slate-200 hover:border-indigo-300 shadow-sm";
+                    if (state.readingAnswers.word[i] === o) btnStyle = "bg-indigo-600 border-indigo-600 text-white";
+                    
+                    if (state.readingSubmitted) {
+                        const isCorrect = o === q.a;
+                        const isChosenWrong = state.readingAnswers.word[i] === o && o !== q.a;
+                        if (isCorrect) btnStyle = "bg-emerald-500 border-emerald-500 text-white shadow-lg";
+                        else if (isChosenWrong) btnStyle = "bg-red-500 border-red-500 text-white shadow-lg";
+                        else btnStyle = "bg-white text-slate-300 border-slate-100";
+                    }
+
+                    btn.className = `flex-1 py-3.5 rounded-xl text-sm font-bold border-2 transition-all ${btnStyle}`;
+                    btn.innerText = o;
+                    btn.onclick = () => { state.readingAnswers.word[i] = o; render(); };
+                    btnGrid.appendChild(btn);
+                });
+                qBox.appendChild(btnGrid);
+                wcGrid.appendChild(qBox);
+            });
+            wcDiv.appendChild(wcGrid);
+
+            // Footer
+            const footer = container.querySelector('#reading-footer');
+            if (!state.readingSubmitted) {
+                const btn = document.createElement('button');
+                btn.className = "w-full py-5 bg-slate-800 text-white rounded-2xl font-black text-xl hover:bg-slate-900 active:scale-[0.98] transition-all shadow-xl";
+                btn.innerText = "SUBMIT READING TASK";
+                btn.onclick = () => { state.readingSubmitted = true; render(); };
+                footer.appendChild(btn);
+            } else {
+                const stats = getReadingStats(level);
+                footer.innerHTML = `
+                    <div class="p-8 bg-indigo-600 rounded-3xl text-white shadow-2xl">
+                        <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                            <div class="text-left">
+                                <h4 class="text-3xl font-black mb-1 flex items-center gap-3"><i class="fas fa-check-circle"></i> COMPLETED</h4>
+                                <p class="text-indigo-100 text-sm">Review the highlighted text for evidence.</p>
+                            </div>
+                            <div class="flex items-center gap-6 bg-white/10 p-4 rounded-2xl border border-white/20">
+                                <div class="text-center">
+                                    <p class="text-[10px] uppercase font-bold tracking-widest opacity-70">Total Correct</p>
+                                    <p class="text-4xl font-black">${stats.totalCorrect} / ${stats.totalQuestions}</p>
+                                </div>
+                                <div class="h-10 w-px bg-white/20"></div>
+                                <div class="flex flex-col gap-1 text-[11px] font-bold">
+                                    <div class="flex justify-between gap-4"><span>Summary:</span> <span>${stats.summaryCorrect}/${level.summaryAnswers.length}</span></div>
+                                    <div class="flex justify-between gap-4"><span>Comp:</span> <span>${stats.compCorrect}/${level.comprehension.length}</span></div>
+                                    <div class="flex justify-between gap-4"><span>Words:</span> <span>${stats.wordCorrect}/${level.wordChoice.length}</span></div>
+                                </div>
+                            </div>
+                            <button onclick="state.selectedReadingId = null; render();" class="bg-white text-indigo-600 px-10 py-3 rounded-2xl font-black hover:bg-slate-50 transition-all shadow-lg active:scale-95">Back</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return container;
+        };
+
+        const getReadingStats = (level) => {
+            let summaryCorrect = 0;
+            level.summaryAnswers.forEach((ans, i) => { if (state.readingAnswers.summary[i]?.toLowerCase().trim() === ans.toLowerCase()) summaryCorrect++; });
+            let compCorrect = 0;
+            level.comprehension.forEach((q, i) => { if (state.readingAnswers.comp[i] === q.a) compCorrect++; });
+            let wordCorrect = 0;
+            level.wordChoice.forEach((q, i) => { if (state.readingAnswers.word[i] === q.a) wordCorrect++; });
+            return { 
+                summaryCorrect, compCorrect, wordCorrect, 
+                totalCorrect: summaryCorrect + compCorrect + wordCorrect,
+                totalQuestions: level.summaryAnswers.length + level.comprehension.length + level.wordChoice.length
+            };
+        };
+
+        const toggleTooltip = (id, vocab, element) => {
+            if (state.activeTooltip === id) {
+                removeTooltip();
+                return;
+            }
+            removeTooltip();
+            state.activeTooltip = id;
+            
+            const tooltip = document.createElement('div');
+            tooltip.id = "active-tooltip";
+            tooltip.className = "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-slate-800 text-white p-3 rounded-xl shadow-2xl z-50 animate-pop text-sm font-sans";
+            tooltip.innerHTML = `
+                <p class="font-bold border-b border-slate-600 pb-1 mb-1 text-indigo-300 tracking-tight">${vocab.word}</p>
+                <p class="leading-snug">${vocab.definition}</p>
+                <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-slate-800"></div>
+            `;
+            element.appendChild(tooltip);
+        };
+
+        const removeTooltip = () => {
+            const t = document.getElementById('active-tooltip');
+            if (t) t.remove();
+            state.activeTooltip = null;
+        };
+
+        const createListeningView = () => {
+            const container = document.createElement('div');
+            container.className = "bg-white rounded-3xl shadow-xl p-8 max-w-4xl w-full h-[90vh] flex flex-col overflow-hidden";
+            
+            const rawScript = "Professor: Welcome back, everyone. Today, let's discuss the controversial aesthetic of Brutalist architecture. Many people see these buildings as cold or ugly, but architects from the 1950s saw them as a symbol of social progress. They relied heavily on reinforced concrete to create massive, raw structures. A typical Brutalist building often features a striking façade with repeated geometric patterns. Some even incorporate a large atrium to provide natural light inside these heavy forms. Despite their rough appearance, the blueprints for these structures were mathematically complex and aimed at maximum functionality. Nowadays, city planners are choosing to renovate these buildings rather than destroy them, as they have become iconic parts of our urban infrastructure.";
+            
+            container.innerHTML = `
+                <div class="flex justify-between items-center mb-8">
+                    <div class="flex items-center gap-3">
+                        <button onclick="state.view = 'menu'; render();" class="p-2 hover:bg-slate-100 rounded-xl transition-colors"><i class="fas fa-chevron-left"></i></button>
+                        <h2 class="text-2xl font-bold">Listening Practice (Dictation)</h2>
+                    </div>
+                </div>
+                <div class="bg-slate-900 text-white p-7 rounded-[40px] mb-8 shadow-2xl flex items-center gap-6">
+                    <button onclick="toggleAudio()" id="play-btn" class="w-20 h-20 rounded-3xl bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20 flex items-center justify-center transition-all">
+                        <i class="fas fa-play text-3xl ml-1"></i>
+                    </button>
+                    <div class="flex-1">
+                        <div class="text-lg font-bold mb-2">The Brutalist Era Lecture</div>
+                        <div class="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden">
+                            <div id="audio-progress" class="h-full bg-indigo-500 w-0 transition-all duration-300"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-8 bg-slate-50 rounded-3xl border border-slate-100 custom-scrollbar" id="dictation-content"></div>
+                <button onclick="state.view = 'menu'; render();" class="w-full mt-6 py-5 bg-slate-800 text-white rounded-2xl font-black text-xl hover:bg-slate-900 active:scale-[0.98] transition-all shadow-xl">FINISH</button>
+            `;
+
+            const dictation = container.querySelector('#dictation-content');
+            const words = rawScript.split(/\s+/);
+            const vocabWords = VOCAB_BANK.map(v => v.word.toLowerCase());
+            
+            let html = '<div class="text-xl leading-[2.2] text-slate-700 font-serif">';
+            for(let i=0; i<words.length; i++) {
+                const clean = words[i].replace(/[.,;:!?()]/g, '').toLowerCase();
+                let isTarget = false;
+                let targetText = "";
+
+                if (clean === "reinforced" && words[i+1]?.replace(/[.,;:!?()]/g, '').toLowerCase() === "concrete") {
+                    isTarget = true; targetText = "reinforced concrete"; i++;
+                } else if (vocabWords.includes(clean)) {
+                    isTarget = true; targetText = VOCAB_BANK[vocabWords.indexOf(clean)].word;
+                }
+
+                if (isTarget) {
+                    html += ` <span class="inline-block relative px-1">
+                        <input type="text" placeholder="?" class="px-2 h-10 border-b-4 border-indigo-200 focus:border-indigo-600 outline-none transition-all text-center font-bold bg-white/50 rounded-t-lg" style="width: ${Math.max(100, targetText.length * 12)}px">
+                    </span> `;
+                } else {
+                    html += words[i] + ' ';
+                }
+            }
+            html += '</div>';
+            dictation.innerHTML = html;
+
+            return container;
+        };
+
+        let audioObj = null;
+        let isAudioLoading = false;
+
+        const toggleAudio = async () => {
+            if (isAudioLoading) return;
+            const btn = document.getElementById('play-btn');
+            
+            if (audioObj) {
+                if (audioObj.paused) { 
+                    audioObj.play().catch(e => {
+                        console.error("Audio playback failed", e);
+                        btn.innerHTML = '<i class="fas fa-play text-3xl ml-1"></i>';
+                    }); 
+                    btn.innerHTML = '<i class="fas fa-pause text-3xl"></i>'; 
+                }
+                else { 
+                    audioObj.pause(); 
+                    btn.innerHTML = '<i class="fas fa-play text-3xl ml-1"></i>'; 
+                }
+                return;
+            }
+
+            try {
+                isAudioLoading = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin text-3xl"></i>';
+                const text = "Say in a clear academic voice: Professor: Welcome back, everyone. Today, let's discuss the controversial aesthetic of Brutalist architecture. Many people see these buildings as cold or ugly, but architects from the 1950s saw them as a symbol of social progress. They relied heavily on reinforced concrete to create massive, raw structures. A typical Brutalist building often features a striking façade with repeated geometric patterns. Some even incorporate a large atrium to provide natural light inside these heavy forms. Despite their rough appearance, the blueprints for these structures were mathematically complex and aimed at maximum functionality. Nowadays, city planners are choosing to renovate these buildings rather than destroy them, as they have become iconic parts of our urban infrastructure.";
+                
+                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } } } } })
+                });
+                
+                const res = await resp.json();
+                const pcmData = res.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+                if (!pcmData) throw new Error("No audio data received");
+                
+                const binary = window.atob(pcmData);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                
+                const sr = 24000;
+                const header = new ArrayBuffer(44);
+                const v = new DataView(header);
+                
+                v.setUint32(0, 0x52494646, false);
+                v.setUint32(4, 36 + bytes.length, true);
+                v.setUint32(8, 0x57415645, false);
+                v.setUint32(12, 0x666d7420, false);
+                v.setUint32(16, 16, true);
+                v.setUint16(20, 1, true);
+                v.setUint16(22, 1, true);
+                v.setUint32(24, sr, true);
+                v.setUint32(28, sr * 2, true);
+                v.setUint16(32, 2, true);
+                v.setUint16(34, 16, true);
+                v.setUint32(36, 0x64617461, false);
+                v.setUint32(40, bytes.length, true);
+                
+                const url = URL.createObjectURL(new Blob([header, bytes], { type: 'audio/wav' }));
+                audioObj = new Audio(url);
+                audioObj.ontimeupdate = () => {
+                    const prog = document.getElementById('audio-progress');
+                    if(prog) prog.style.width = (audioObj.currentTime / audioObj.duration * 100) + '%';
+                };
+                audioObj.onended = () => { btn.innerHTML = '<i class="fas fa-play text-3xl ml-1"></i>'; };
+                
+                isAudioLoading = false;
+                audioObj.play().catch(e => {
+                    console.error("Playback failed", e);
+                    btn.innerHTML = '<i class="fas fa-play text-3xl ml-1"></i>';
+                });
+                btn.innerHTML = '<i class="fas fa-pause text-3xl"></i>';
+            } catch (err) {
+                console.error("TTS generation failed", err);
+                isAudioLoading = false;
+                btn.innerHTML = '<i class="fas fa-play text-3xl ml-1"></i>';
+            }
+        };
+
+        window.onload = render;
+        window.onclick = removeTooltip;
+    </script>
+</body>
+</html>
