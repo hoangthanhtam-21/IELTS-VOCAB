@@ -60,7 +60,9 @@
     </div>
 
     <script>
-        const apiKey = "";
+        // --- CONFIGURATION ---
+        // IMPORTANT: When hosting on GitHub, you MUST provide your own Gemini API Key here
+        const apiKey = "AIzaSyAVOzANDNlqqCSiDNDPPjn36JidDEVOQGo"; 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'ielts-vocab-master';
 
         // --- DATA ---
@@ -143,7 +145,7 @@
             selectedReadingId: null,
             readingSubmitted: false,
             readingAnswers: { summary: {}, comp: {}, word: {} },
-            shuffledWordChoices: [], // Danh sách câu hỏi word choice đã trộn đáp án
+            shuffledWordChoices: [],
             activeTooltip: null,
             timerInterval: null
         };
@@ -152,22 +154,24 @@
         const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
 
         const playSound = (type) => {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain); gain.connect(ctx.destination);
-            if (type === 'correct') {
-                osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.1, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-            } else {
-                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(220, ctx.currentTime);
-                osc.frequency.linearRampToValueAtTime(110, ctx.currentTime + 0.2);
-                gain.gain.setValueAtTime(0.1, ctx.currentTime);
-                gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-            }
-            osc.start(); osc.stop(ctx.currentTime + (type === 'correct' ? 0.1 : 0.2));
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                if (type === 'correct') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                } else {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(220, ctx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(110, ctx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                }
+                osc.start(); osc.stop(ctx.currentTime + (type === 'correct' ? 0.1 : 0.2));
+            } catch (e) {}
         };
 
         // --- RENDER ---
@@ -512,7 +516,6 @@
                         state.selectedReadingId = l.id; 
                         state.readingAnswers = { summary: {}, comp: {}, word: {} };
                         state.readingSubmitted = false;
-                        // --- TRỘN ĐÁP ÁN KHI CHỌN CẤP ĐỘ ---
                         state.shuffledWordChoices = l.wordChoice.map(q => ({
                             ...q,
                             shuffledOptions: shuffle([...q.options])
@@ -549,7 +552,6 @@
                 </div>
             `;
 
-            // Article Content with Highlighting
             const article = container.querySelector('#article-content');
             article.innerHTML = `<div class="flex justify-between items-center mb-4 text-xs font-black text-indigo-400 uppercase tracking-widest">
                 <div class="flex items-center gap-2"><i class="fas fa-book-open"></i> <span>English Article</span></div>
@@ -591,7 +593,6 @@
             });
             article.appendChild(contentDiv);
 
-            // Summary
             const questions = container.querySelector('#questions-content');
             const summaryDiv = document.createElement('div');
             summaryDiv.innerHTML = `<h3 class="text-xs font-black text-emerald-500 uppercase tracking-widest mb-3 flex items-center gap-2"><i class="fas fa-bolt"></i> <span>I. Summary</span></h3>`;
@@ -633,7 +634,6 @@
             }
             questions.appendChild(summaryDiv);
 
-            // Comprehension
             const compDiv = document.createElement('div');
             compDiv.innerHTML = `<h3 class="text-xs font-black text-amber-500 uppercase tracking-widest mb-3 flex items-center gap-2"><i class="fas fa-info-circle"></i> <span>II. Comprehension</span></h3>`;
             const compList = document.createElement('div');
@@ -664,7 +664,6 @@
             compDiv.appendChild(compList);
             questions.appendChild(compDiv);
 
-            // Word Choice (SỬ DỤNG state.shuffledWordChoices)
             const wcDiv = container.querySelector('#word-choice-content');
             wcDiv.innerHTML = `<h3 class="text-xs font-black text-indigo-400 uppercase tracking-widest mb-6 flex items-center gap-2"><i class="fas fa-bolt"></i> <span>III. Vocabulary Practice</span></h3>`;
             const wcGrid = document.createElement('div');
@@ -699,7 +698,6 @@
             });
             wcDiv.appendChild(wcGrid);
 
-            // Footer
             const footer = container.querySelector('#reading-footer');
             if (!state.readingSubmitted) {
                 const btn = document.createElement('button');
@@ -790,7 +788,7 @@
                     </div>
                 </div>
                 <div class="bg-slate-900 text-white p-7 rounded-[40px] mb-8 shadow-2xl flex items-center gap-6">
-                    <button onclick="toggleAudio()" id="play-btn" class="w-20 h-20 rounded-3xl bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20 flex items-center justify-center transition-all">
+                    <button onclick="toggleAudio()" id="play-btn" class="w-20 h-20 rounded-3xl bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20 flex items-center justify-center transition-all overflow-hidden relative">
                         <i class="fas fa-play text-3xl ml-1"></i>
                     </button>
                     <div class="flex-1">
@@ -841,6 +839,18 @@
             if (isAudioLoading) return;
             const btn = document.getElementById('play-btn');
             
+            // CHECK API KEY
+            if (!apiKey || apiKey.trim() === "") {
+                btn.classList.add('bg-red-600');
+                btn.innerHTML = '<span class="text-[10px] font-bold">API KEY REQ</span>';
+                setTimeout(() => {
+                    btn.classList.remove('bg-red-600');
+                    btn.innerHTML = '<i class="fas fa-play text-3xl ml-1"></i>';
+                }, 2000);
+                console.error("Gemini API Key is missing. Please provide a key in the 'apiKey' variable.");
+                return;
+            }
+
             if (audioObj) {
                 if (audioObj.paused) { 
                     audioObj.play().catch(e => {
@@ -862,13 +872,28 @@
                 const text = "Say in a clear academic voice: Professor: Welcome back, everyone. Today, let's discuss the controversial aesthetic of Brutalist architecture. Many people see these buildings as cold or ugly, but architects from the 1950s saw them as a symbol of social progress. They relied heavily on reinforced concrete to create massive, raw structures. A typical Brutalist building often features a striking façade with repeated geometric patterns. Some even incorporate a large atrium to provide natural light inside these heavy forms. Despite their rough appearance, the blueprints for these structures were mathematically complex and aimed at maximum functionality. Nowadays, city planners are choosing to renovate these buildings rather than destroy them, as they have become iconic parts of our urban infrastructure.";
                 
                 const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, {
-                    method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } } } } })
+                    method: "POST", 
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                        contents: [{ parts: [{ text }] }], 
+                        generationConfig: { 
+                            responseModalities: ["AUDIO"], 
+                            speechConfig: { 
+                                voiceConfig: { 
+                                    prebuiltVoiceConfig: { voiceName: "Puck" } 
+                                } 
+                            } 
+                        } 
+                    })
                 });
                 
+                if (!resp.ok) {
+                    throw new Error(`API returned ${resp.status}`);
+                }
+
                 const res = await resp.json();
                 const pcmData = res.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-                if (!pcmData) throw new Error("No audio data received");
+                if (!pcmData) throw new Error("No audio data received from API");
                 
                 const binary = window.atob(pcmData);
                 const bytes = new Uint8Array(binary.length);
@@ -907,9 +932,14 @@
                 });
                 btn.innerHTML = '<i class="fas fa-pause text-3xl"></i>';
             } catch (err) {
-                console.error("TTS generation failed", err);
+                console.error("TTS failed", err);
                 isAudioLoading = false;
-                btn.innerHTML = '<i class="fas fa-play text-3xl ml-1"></i>';
+                btn.classList.add('bg-amber-600');
+                btn.innerHTML = '<span class="text-[10px] font-bold">ERR: KEY/NET</span>';
+                setTimeout(() => {
+                    btn.classList.remove('bg-amber-600');
+                    btn.innerHTML = '<i class="fas fa-play text-3xl ml-1"></i>';
+                }, 3000);
             }
         };
 
