@@ -1,559 +1,467 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IELTS Vocab Master</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-        
-        body {
-            font-family: 'Inter', sans-serif;
-        }
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { 
+  Play, Award, Brain, Sparkles, Heart, LayoutGrid, Loader2, Upload
+} from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getAuth, 
+  signInAnonymously, 
+  signInWithCustomToken, 
+  onAuthStateChanged 
+} from 'firebase/auth';
+import { 
+  getFirestore, 
+  doc, 
+  setDoc, 
+  collection, 
+  onSnapshot 
+} from 'firebase/firestore';
 
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
+// --- CẤU HÌNH FIREBASE & API ---
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'ielts-vocab-master-srs';
+const GEMINI_API_KEY = ""; // Key sẽ được môi trường tự động nạp
 
-        .bg-main {
-            background-image: url('https://static.vecteezy.com/system/resources/thumbnails/069/144/917/small/colorful-school-supplies-background-image-2023-vector.jpg');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-        }
+// Khoảng cách lặp lại SRS (tính theo ngày)
+const SRS_INTERVALS = [0, 1, 3, 7, 14, 30]; 
 
-        .animate-pop {
-            animation: pop 0.3s ease-out;
-        }
+const App = () => {
+  const [user, setUser] = useState(null);
+  const [view, setView] = useState('menu'); 
+  const [vocabList, setVocabList] = useState([]); 
+  const [vocabProgress, setVocabProgress] = useState({});
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(300);
+  const [lives, setLives] = useState(3);
+  const [consecutiveWrong, setConsecutiveWrong] = useState(0);
+  const [currentQuiz, setCurrentQuiz] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+  const [gameSessionWords, setGameSessionWords] = useState(new Set());
+  const [loadError, setLoadError] = useState(false);
+  
+  const [aiReading, setAiReading] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [practiceAnswers, setPracticeAnswers] = useState({});
+  const [practiceSubmitted, setPracticeSubmitted] = useState(false);
 
-        @keyframes pop {
-            0% { transform: scale(0.98); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
+  const timerRef = useRef(null);
 
-        .heart-beat {
-            animation: beat 1s infinite;
-        }
+  // Hàm ánh xạ dữ liệu từ JSON sang format của App
+  const mapVocabData = (data) => {
+    return data.map(item => ({
+      word: item.Word || "Unknown",
+      definition: item.Meaning || "No definition",
+      examples: item.Synonym || ""
+    }));
+  };
 
-        @keyframes beat {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-    </style>
-</head>
-<body class="bg-main min-h-screen flex items-center justify-center p-4 overflow-hidden">
+  // 1. Nạp ngân hàng từ vựng từ file architecture.json
+  useEffect(() => {
+    const loadVocabData = async () => {
+      try {
+        const url = new URL('architecture.json', window.location.href).href;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('File not found');
+        const data = await response.json();
+        setVocabList(mapVocabData(data));
+      } catch (error) {
+        console.error("Lỗi khi tải file architecture.json:", error);
+        setLoadError(true);
+      }
+    };
+    loadVocabData();
+  }, []);
 
-    <div id="app" class="w-full flex justify-center items-center min-h-[600px] max-h-screen">
-        <div class="bg-white p-12 rounded-3xl shadow-xl flex flex-col items-center gap-4">
-            <i class="fas fa-circle-notch fa-spin text-4xl text-indigo-600"></i>
-            <p class="font-bold text-slate-600">Đang nạp dữ liệu từ vựng...</p>
+  // 2. Xác thực người dùng (Rule 3)
+  useEffect(() => {
+    const initAuth = async () => {
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+        await signInWithCustomToken(auth, __initial_auth_token);
+      } else {
+        await signInAnonymously(auth);
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
+
+  // 3. Lấy dữ liệu tiến độ từ Firestore (Rule 1 & 2)
+  useEffect(() => {
+    if (!user) return;
+    const progressRef = collection(db, 'artifacts', appId, 'users', user.uid, 'vocab_progress');
+    const unsubscribe = onSnapshot(progressRef, (snapshot) => {
+      const data = {};
+      snapshot.forEach(doc => { data[doc.id] = doc.data(); });
+      setVocabProgress(data);
+    }, (error) => console.error("Firestore Error:", error));
+    return () => unsubscribe();
+  }, [user]);
+
+  // 4. Logic tạo Quiz dựa trên SRS
+  const generateNextQuiz = useCallback(() => {
+    if (vocabList.length === 0) return;
+    const now = Date.now();
+    const available = vocabList.filter(v => {
+      const p = vocabProgress[v.word];
+      if (!p) return true;
+      return p.nextReview <= now;
+    });
+
+    const pool = available.length > 5 ? available : vocabList;
+    const target = pool[Math.floor(Math.random() * pool.length)];
+    const distractors = vocabList
+      .filter(v => v.word !== target.word)
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 3)
+      .map(v => v.definition);
+
+    const options = [...distractors, target.definition].sort(() => 0.5 - Math.random());
+    setCurrentQuiz({ ...target, options, correctIndex: options.indexOf(target.definition) });
+  }, [vocabProgress, vocabList]);
+
+  const startSession = () => {
+    setScore(0);
+    setTimeLeft(300);
+    setLives(3);
+    setConsecutiveWrong(0);
+    setGameSessionWords(new Set());
+    setView('quiz');
+    generateNextQuiz();
+    
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          setView('session_end');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleAnswer = async (index) => {
+    if (feedback || !user) return;
+    const isCorrect = index === currentQuiz.correctIndex;
+    let nextConsecutiveWrong = isCorrect ? 0 : consecutiveWrong + 1;
+    let newLives = lives;
+    let lifeLost = false;
+
+    if (!isCorrect && nextConsecutiveWrong >= 2) {
+      newLives = lives - 1;
+      setLives(newLives);
+      nextConsecutiveWrong = 0;
+      lifeLost = true;
+    }
+
+    setConsecutiveWrong(nextConsecutiveWrong);
+    setFeedback({ index, correct: currentQuiz.correctIndex, isCorrect, lifeLost });
+    
+    if (isCorrect) {
+      setScore(s => s + 10);
+      setGameSessionWords(prev => new Set(prev).add(currentQuiz.word));
+      const currentLevel = vocabProgress[currentQuiz.word]?.level || 0;
+      const nextLevel = Math.min(currentLevel + 1, 5);
+      const nextReview = Date.now() + (SRS_INTERVALS[nextLevel] * 24 * 60 * 60 * 1000);
+      await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'vocab_progress', currentQuiz.word), {
+        level: nextLevel, nextReview, lastUpdated: Date.now()
+      });
+    } else {
+      await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'vocab_progress', currentQuiz.word), {
+        level: 0, nextReview: Date.now(), lastUpdated: Date.now()
+      });
+    }
+
+    setTimeout(() => {
+      setFeedback(null);
+      if (newLives <= 0) {
+        clearInterval(timerRef.current);
+        setView('game_over');
+      } else {
+        generateNextQuiz();
+      }
+    }, 1500);
+  };
+
+  // 5. Tạo bài đọc AI (Trình độ B1-B2 & Luyện từ vựng trong ngữ cảnh)
+  const generateAIReading = async () => {
+    if (isGenerating) return;
+    setIsGenerating(true);
+    setPracticeSubmitted(false);
+    setPracticeAnswers({});
+    const wordsToUse = Array.from(gameSessionWords).length >= 5 
+      ? Array.from(gameSessionWords).slice(0, 10) 
+      : vocabList.slice(0, 8).map(v => v.word);
+
+    const prompt = `Create an IELTS Reading passage (Level B1-B2) about architecture. 
+    The tone should be natural and engaging, NOT overly academic. (Length: 200-250 words).
+    You MUST naturally include these words: ${wordsToUse.join(', ')}.
+    
+    Then, create 5 Word Choice questions based on the vocabulary. 
+    Each question must provide a NEW sentence (different from the passage) with a blank (____).
+    The options should be words from the provided list or contextually similar words to test understanding.
+    
+    Structure the response as a JSON object:
+    { 
+      "title": "A Simple Title", 
+      "content": "The B1-B2 level passage...", 
+      "wordChoice": [
+        {"q": "A new sentence with a ____ blank.", "options": ["Choice A", "Choice B"], "a": "Correct Word"}
+      ] 
+    }`;
+
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json" }
+        })
+      });
+      const result = await response.json();
+      const data = JSON.parse(result.candidates[0].content.parts[0].text);
+      setAiReading(data);
+      setView('ai_reading');
+    } catch (err) {
+      alert("Lỗi khi tạo bài đọc AI. Vui lòng thử lại.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+        setVocabList(mapVocabData(data));
+        setLoadError(false);
+      } catch (err) {
+        alert("File không đúng định dạng JSON.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  if (!user || vocabList.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-indigo-50 p-6 text-center">
+        {!loadError ? (
+          <>
+            <Loader2 className="animate-spin text-indigo-600 mb-4" size={48} />
+            <p className="font-bold text-slate-600">Đang chuẩn bị ngân hàng từ vựng...</p>
+          </>
+        ) : (
+          <div className="bg-white p-8 rounded-[32px] shadow-xl max-w-sm w-full animate-pop border border-red-100">
+            <Upload className="text-red-500 mx-auto mb-4" size={48} />
+            <h2 className="text-xl font-black text-slate-800 mb-2">Không tìm thấy dữ liệu</h2>
+            <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+              Trình duyệt không thể tự động nạp file <b>architecture.json</b>. 
+              Vui lòng chọn file này từ thiết bị của bạn để tiếp tục.
+            </p>
+            <label className="block w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold cursor-pointer hover:bg-indigo-700 transition-all shadow-lg active:scale-95">
+              Chọn architecture.json
+              <input type="file" className="hidden" accept=".json" onChange={handleFileUpload} />
+            </label>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans p-4 flex items-center justify-center">
+      <div className="w-full max-w-2xl bg-white rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative">
+        <div className="px-8 pt-8 pb-4 flex justify-between items-center bg-white z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
+              <Brain className="text-white" size={20} />
+            </div>
+            <div>
+              <h1 className="text-xl font-black text-slate-800 tracking-tight">IELTS Master</h1>
+              <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">{vocabList.length}+ Architecture Words</div>
+            </div>
+          </div>
+          {view === 'quiz' && (
+            <div className="flex items-center gap-4">
+              <div className="flex gap-1">
+                {[1, 2, 3].map(i => (
+                  <Heart key={i} size={18} fill={lives >= i ? "#ef4444" : "none"} className={lives >= i ? "text-red-500" : "text-slate-200"} />
+                ))}
+              </div>
+              <div className="font-mono font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+                {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+              </div>
+            </div>
+          )}
         </div>
-    </div>
 
-    <script>
-        // --- CẤU HÌNH ---
-        // API Key sẽ được môi trường thực thi tự động nạp. 
-        // Nếu bạn dùng trên GitHub, hãy dán Key của bạn vào giữa cặp ngoặc kép.
-        const apiKey = ""; 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'ielts-vocab-master';
-
-        // --- TRẠNG THÁI (STATE) ---
-        let state = {
-            view: 'topics',
-            lastView: null,
-            score: 0,
-            timeLeft: 300,
-            lives: 3,
-            consecutiveWrong: 0, 
-            masteredWords: new Set(),
-            currentQuizIndex: 0,
-            quizPool: [],
-            quizFeedback: null, 
-            selectedReadingId: null,
-            readingSubmitted: false,
-            readingAnswers: { summary: {}, comp: {}, word: {} },
-            shuffledWordChoices: [],
-            activeTooltip: null,
-            timerInterval: null,
-            vocabBank: [],
-            readingLevels: [], 
-            currentListening: null,
-            isLoading: true,
-            isGenerating: false,
-            isPlayingAudio: false
-        };
-
-        // --- HELPER: FETCH WITH RETRY ---
-        const fetchWithRetry = async (url, options, retries = 5, backoff = 1000) => {
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const response = await fetch(url, options);
-                    if (response.ok) return await response.json();
-                    if (response.status !== 429 && response.status < 500) break;
-                } catch (err) {}
-                await new Promise(resolve => setTimeout(resolve, backoff));
-                backoff *= 2;
-            }
-            throw new Error("Failed after retries");
-        };
-
-        // --- XỬ LÝ DỮ LIỆU TỪ JSON ---
-        const processJsonData = (data) => {
-            const rawList = Array.isArray(data) ? data : (data.vocab || []);
-            state.vocabBank = rawList.map(item => ({
-                id: item.ID || Math.random(),
-                word: item.Word || "Unknown",
-                definition: item.Meaning || "No definition available",
-                examples: item.Synonym || ""
-            }));
-            state.isLoading = false;
-            render();
-        };
-
-        const loadExternalData = async () => {
-            try {
-                const response = await fetch('./architecture.json');
-                if (!response.ok) throw new Error('Không thể tải file architecture.json');
-                const data = await response.json();
-                processJsonData(data);
-            } catch (error) {
-                console.error('Lỗi nạp JSON:', error);
-                showErrorState();
-            }
-        };
-
-        const showErrorState = () => {
-            document.getElementById('app').innerHTML = `
-                <div class="bg-white p-10 rounded-3xl shadow-xl text-center max-w-md animate-pop">
-                    <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i class="fas fa-file-import text-2xl"></i>
-                    </div>
-                    <p class="font-bold text-slate-800 text-lg mb-2">Không thể tự động nạp dữ liệu</p>
-                    <p class="text-sm text-slate-500 mb-6 leading-relaxed">Vui lòng chọn tập tin <b>architecture.json</b> thủ công.</p>
-                    <label class="block w-full py-3 px-6 bg-indigo-600 text-white rounded-xl font-bold cursor-pointer hover:bg-indigo-700 transition-all shadow-lg active:scale-95">
-                        <i class="fas fa-upload mr-2"></i> Chọn architecture.json
-                        <input type="file" id="manual-json" class="hidden" accept=".json">
-                    </label>
-                </div>`;
-            document.getElementById('manual-json')?.addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => processJsonData(JSON.parse(ev.target.result));
-                reader.readAsText(file);
-            });
-        };
-
-        // --- TẠO BÀI ĐỌC/NGHE AI ---
-        const generateAIContent = async (type = 'reading') => {
-            if (state.isGenerating) return;
-            state.isGenerating = true;
-            render();
-
-            try {
-                const shuffledVocab = shuffle(state.vocabBank).slice(0, 15);
-                const wordList = shuffledVocab.map(v => v.word).join(', ');
-
-                const prompt = type === 'reading' 
-                    ? `Create an IELTS Reading Level 2 passage related to architecture. Use these words: ${wordList}. Return a JSON object: {"title": "String", "wordCount": "String", "genre": "String", "content": "String", "summary": "String with (1)__________ blanks", "summaryAnswers": ["word1", "word2"], "comprehension": [{"q": "String", "type": "TF", "a": "True/False/Not Given", "evidence": "String"}], "wordChoice": [{"q": "String with ____ blank.", "options": ["A", "B"], "a": "A"}]}`
-                    : `Create a 150-word academic script for a listening lecture about architecture. Use these words: ${wordList}. Return a JSON object: {"title": "String", "content": "The full script text..."}`;
-
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-                const result = await fetchWithRetry(url, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: { responseMimeType: "application/json" }
-                    })
-                });
-
-                const content = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!content) throw new Error("No content from AI");
-                
-                const newLevel = JSON.parse(content);
-                newLevel.id = Date.now();
-                
-                if (type === 'reading') {
-                    state.readingLevels.push(newLevel);
-                    state.selectedReadingId = newLevel.id;
-                    state.readingAnswers = { summary: {}, comp: {}, word: {} };
-                    state.readingSubmitted = false;
-                    state.shuffledWordChoices = newLevel.wordChoice.map(q => ({ ...q, shuffledOptions: shuffle([...q.options]) }));
-                    state.view = 'reading';
-                } else {
-                    state.currentListening = newLevel;
-                    state.view = 'listening';
-                }
-            } catch (err) {
-                console.error("AI Gen Error:", err);
-                alert("Lỗi kết nối AI hoặc phân tích dữ liệu. Vui lòng thử lại sau vài giây.");
-            } finally {
-                state.isGenerating = false;
-                render();
-            }
-        };
-
-        const playTTS = async (text) => {
-            if (state.isPlayingAudio) return;
-            state.isPlayingAudio = true;
-            render();
-
-            try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
-                const result = await fetchWithRetry(url, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: `Say clearly: ${text}` }] }],
-                        generationConfig: {
-                            responseModalities: ["AUDIO"],
-                            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } } }
-                        },
-                        model: "gemini-2.5-flash-preview-tts"
-                    })
-                });
-
-                const audioData = result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-                const mimeType = result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType;
-
-                if (audioData) {
-                    const sampleRate = parseInt(mimeType.split('rate=')[1]) || 24000;
-                    playWavFromPcm(audioData, sampleRate);
-                }
-            } catch (err) {
-                console.error("TTS Error:", err);
-            } finally {
-                state.isPlayingAudio = false;
-                render();
-            }
-        };
-
-        const playWavFromPcm = (base64Data, sampleRate) => {
-            const binaryString = window.atob(base64Data);
-            const len = binaryString.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
-
-            const wavHeader = new ArrayBuffer(44);
-            const view = new DataView(wavHeader);
-            const writeString = (offset, string) => {
-                for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
-            };
-
-            writeString(0, 'RIFF');
-            view.setUint32(4, 32 + len, true);
-            writeString(8, 'WAVE');
-            writeString(12, 'fmt ');
-            view.setUint32(16, 16, true);
-            view.setUint16(20, 1, true);
-            view.setUint16(22, 1, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, sampleRate * 2, true);
-            view.setUint16(32, 2, true);
-            view.setUint16(34, 16, true);
-            writeString(36, 'data');
-            view.setUint32(40, len, true);
-
-            const blob = new Blob([wavHeader, bytes], { type: 'audio/wav' });
-            const url = URL.createObjectURL(blob);
-            const audio = new Audio(url);
-            audio.play();
-        };
-
-        // --- HỆ THỐNG ĐẾM NGƯỢC ---
-        const startTimer = () => {
-            if (state.timerInterval) clearInterval(state.timerInterval);
-            state.timerInterval = setInterval(() => {
-                state.timeLeft--;
-                if (state.timeLeft <= 0) {
-                    clearInterval(state.timerInterval);
-                    finishGame("Hết giờ!");
-                } else {
-                    const timerDisp = document.getElementById('timer-display');
-                    if (timerDisp) timerDisp.innerText = formatTime(state.timeLeft);
-                }
-            }, 1000);
-        };
-
-        const formatTime = (seconds) => {
-            const m = Math.floor(seconds / 60);
-            const s = seconds % 60;
-            return `${m}:${s.toString().padStart(2, '0')}`;
-        };
-
-        // --- HÀM HỖ TRỢ ---
-        const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
-
-        const playSound = (type) => {
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain); gain.connect(ctx.destination);
-                osc.type = type === 'correct' ? 'sine' : 'sawtooth';
-                osc.frequency.setValueAtTime(type === 'correct' ? 880 : 220, ctx.currentTime);
-                gain.gain.setValueAtTime(0.05, ctx.currentTime);
-                osc.start(); osc.stop(ctx.currentTime + 0.15);
-            } catch (e) {}
-        };
-
-        // --- XỬ LÝ ĐÁP ÁN QUIZ ---
-        const handleQuizAnswer = (selectedIndex) => {
-            if (state.quizFeedback) return;
-
-            const item = state.quizPool[state.currentQuizIndex];
-            const correctIndex = item.fixedOptions.indexOf(item.definition);
-            const isCorrect = selectedIndex === correctIndex;
-
-            playSound(isCorrect ? 'correct' : 'wrong');
-
-            let message = "";
-            if (isCorrect) {
-                state.score += 10;
-                state.consecutiveWrong = 0;
-            } else {
-                state.consecutiveWrong++;
-                if (state.consecutiveWrong >= 2) {
-                    state.lives--;
-                    state.consecutiveWrong = 0;
-                    message = "Mất 1 mạng!";
-                }
-            }
-
-            state.quizFeedback = { selectedIndex, correctIndex, isCorrect, message };
-            render();
-
-            setTimeout(() => {
-                state.quizFeedback = null;
-                if (state.lives <= 0) {
-                    clearInterval(state.timerInterval);
-                    finishGame("GAME OVER");
-                } else {
-                    state.currentQuizIndex = (state.currentQuizIndex + 1) % state.quizPool.length;
-                    render();
-                }
-            }, 1500);
-        };
-
-        const finishGame = (status) => {
-            state.view = 'result';
-            state.finalStatus = status;
-            render();
-        };
-
-        // --- GIAO DIỆN ---
-        const render = () => {
-            if (state.isLoading) return;
-            const app = document.getElementById('app');
-            const isNewView = state.view !== state.lastView;
-            state.lastView = state.view;
-
-            app.innerHTML = '';
-            let content;
-            switch (state.view) {
-                case 'topics': content = createTopicSelection(); break;
-                case 'menu': content = createMenu(); break;
-                case 'quiz': content = createQuiz(); break;
-                case 'reading': content = createReadingView(); break;
-                case 'listening': content = createListeningView(); break;
-                case 'result': content = createResultView(); break;
-            }
-
-            if (isNewView) content.classList.add('animate-pop');
-            app.appendChild(content);
-        };
-
-        const createTopicSelection = () => {
-            const container = document.createElement('div');
-            container.className = "flex flex-col gap-6 p-8 bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl max-w-4xl w-full border border-white/20";
-            container.innerHTML = `
-                <div class="text-center mb-4">
-                    <h1 class="text-4xl font-black text-slate-800 tracking-tighter mb-2">IELTS Vocab Master</h1>
-                    <p class="text-slate-500 font-medium italic text-sm tracking-tight">Học hơn 80 từ vựng học thuật</p>
+        <div className="p-8">
+          {view === 'menu' && (
+            <div className="flex flex-col items-center text-center animate-pop">
+              <div className="w-32 h-32 bg-indigo-50 rounded-[40px] flex items-center justify-center mb-6 border border-indigo-100">
+                <Sparkles className="text-indigo-600" size={64} />
+              </div>
+              <h2 className="text-3xl font-black text-slate-800 mb-2">Sẵn sàng chưa?</h2>
+              <p className="text-slate-500 mb-8 max-w-sm text-sm">Học và ôn tập từ vựng với phương pháp SRS khoa học (B1-B2 Level).</p>
+              
+              <div className="grid grid-cols-2 gap-4 w-full mb-8">
+                <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100">
+                  <div className="text-2xl font-black text-slate-800">{Object.keys(vocabProgress).length}</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Từ đã học</div>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <button onclick="state.view = 'menu'; render();" class="p-6 bg-white border-2 border-indigo-100 rounded-2xl shadow-lg hover:border-indigo-500 hover:-translate-y-1 transition-all flex flex-col items-center gap-3">
-                        <div class="p-3 bg-indigo-50 rounded-xl"><i class="fas fa-city text-indigo-600 text-2xl"></i></div>
-                        <span class="font-bold text-slate-800">Architecture</span>
+                <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100">
+                  <div className="text-2xl font-black text-indigo-600">{Object.values(vocabProgress).filter(v => v.level >= 5).length}</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Thành thạo</div>
+                </div>
+              </div>
+
+              <button 
+                onClick={startSession}
+                className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-3xl font-black text-xl shadow-xl shadow-indigo-100 transition-all flex items-center justify-center gap-3 active:scale-95"
+              >
+                <Play fill="currentColor" size={24} /> BẮT ĐẦU ÔN TẬP
+              </button>
+            </div>
+          )}
+
+          {view === 'quiz' && currentQuiz && (
+            <div className="animate-pop relative">
+              {feedback?.lifeLost && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm rounded-3xl">
+                  <div className="bg-red-600 text-white px-8 py-4 rounded-2xl shadow-2xl flex flex-col items-center gap-2 border-4 border-white animate-bounce">
+                    <Heart size={48} fill="white" />
+                    <span className="text-2xl font-black uppercase tracking-tighter">Mất 1 mạng!</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="text-center mb-10">
+                <div className="text-5xl font-black text-slate-800 mb-2 tracking-tighter capitalize">{currentQuiz.word}</div>
+                <div className="flex justify-center gap-2">
+                  {[1, 2, 3, 4, 5].map(lvl => (
+                    <div key={lvl} className={`h-1.5 w-8 rounded-full ${vocabProgress[currentQuiz.word]?.level >= lvl ? 'bg-indigo-600' : 'bg-slate-100'}`} />
+                  ))}
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-4 italic">Chọn nghĩa chính xác của từ trên</p>
+              </div>
+
+              <div className="grid gap-3">
+                {currentQuiz.options.map((opt, idx) => {
+                  let btnCls = "border-slate-100 hover:border-indigo-200 hover:bg-slate-50";
+                  if (feedback) {
+                    if (idx === feedback.correct) btnCls = "bg-green-500 border-green-500 text-white shadow-lg";
+                    else if (!feedback.isCorrect && idx === feedback.index) btnCls = "bg-red-500 border-red-500 text-white shadow-lg";
+                    else btnCls = "opacity-40 grayscale";
+                  }
+                  return (
+                    <button key={idx} onClick={() => handleAnswer(idx)} disabled={!!feedback} className={`w-full p-4 rounded-3xl text-left font-bold text-slate-700 border-2 transition-all duration-300 ${btnCls}`}>
+                      {opt}
                     </button>
-                    ${['Tech', 'Nature', 'Health'].map(t => `
-                        <div class="p-6 bg-slate-50/50 border-2 border-slate-100 rounded-2xl opacity-50 grayscale flex flex-col items-center gap-3 cursor-not-allowed">
-                            <i class="fas fa-lock text-slate-300 text-2xl"></i>
-                            <span class="font-bold text-slate-400">${t}</span>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-            return container;
-        };
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
-        const createMenu = () => {
-            const container = document.createElement('div');
-            container.className = "flex flex-col gap-6 p-8 text-center bg-white rounded-3xl shadow-xl max-w-md w-full border border-slate-100";
-            container.innerHTML = `
-                <div class="flex items-center gap-2 mb-2">
-                    <button onclick="state.view = 'topics'; render();" class="p-2 hover:bg-slate-100 rounded-xl text-slate-400"><i class="fas fa-chevron-left"></i></button>
-                    <span class="text-xs font-black text-indigo-400 uppercase tracking-widest">Architecture</span>
+          {view === 'game_over' && (
+            <div className="text-center animate-pop">
+              <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Heart size={48} className="text-red-500" />
+              </div>
+              <h2 className="text-4xl font-black text-slate-800 mb-2 uppercase tracking-tighter">Hết mạng!</h2>
+              <p className="text-slate-500 mb-8 text-sm">Hãy thử lại và tập trung hơn vào các từ vựng này.</p>
+              <button onClick={() => setView('menu')} className="w-full py-4 bg-slate-800 text-white rounded-2xl font-bold shadow-lg active:scale-95">Quay lại Menu</button>
+            </div>
+          )}
+
+          {view === 'session_end' && (
+            <div className="text-center animate-pop">
+              <div className="w-24 h-24 bg-emerald-50 rounded-[30px] flex items-center justify-center mx-auto mb-6 border border-emerald-100">
+                <Award size={48} className="text-emerald-600" />
+              </div>
+              <h2 className="text-4xl font-black text-slate-800 mb-2 uppercase tracking-tighter">Xong phiên!</h2>
+              <div className="text-slate-400 font-bold mb-8 italic">Bạn vừa củng cố {gameSessionWords.size} từ vựng.</div>
+              <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 mb-8">
+                <div className="text-xs font-black text-indigo-700 mb-3 uppercase tracking-widest text-left">Từ vừa ôn tập:</div>
+                <div className="flex flex-wrap gap-2">
+                  {Array.from(gameSessionWords).slice(0, 10).map(w => (
+                    <span key={w} className="px-3 py-1 bg-white text-indigo-600 rounded-xl text-xs font-black shadow-sm border border-indigo-100">{w}</span>
+                  ))}
+                  {gameSessionWords.size > 10 && <span className="text-xs font-bold text-indigo-400">+{gameSessionWords.size - 10} từ nữa</span>}
                 </div>
-                <div class="flex justify-center mb-2">
-                    <div class="w-24 h-24 bg-white rounded-2xl overflow-hidden shadow-sm flex items-center justify-center border border-slate-50">
-                        <img src="logo.jpg" onerror="this.src='https://via.placeholder.com/100/6366f1/ffffff?text=IELTS'" class="w-full h-full object-contain">
-                    </div>
-                </div>
-                <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight">Architecture</h2>
-                <button onclick="startQuiz()" class="py-4 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.02]">
-                    <i class="fas fa-bolt"></i><span>Bắt đầu Luyện tập</span>
+              </div>
+              <div className="space-y-3">
+                <button onClick={generateAIReading} disabled={isGenerating} className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl shadow-indigo-100 flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50">
+                  {isGenerating ? <Loader2 className="animate-spin" /> : <Sparkles size={20} />} TẠO BÀI ĐỌC (LEVEL B1-B2)
                 </button>
-                <div class="grid grid-cols-2 gap-4">
-                    <button onclick="state.view = 'reading'; render();" class="p-4 bg-emerald-50 text-emerald-700 border-2 border-emerald-100 rounded-2xl font-semibold hover:bg-emerald-100 flex flex-col items-center gap-2 transition-all hover:scale-[1.02]"><i class="fas fa-book"></i><span>Reading</span></button>
-                    <button onclick="state.view = 'listening'; render();" class="p-4 bg-amber-50 text-amber-700 border-2 border-amber-100 rounded-2xl font-semibold hover:bg-amber-100 flex flex-col items-center gap-2 transition-all hover:scale-[1.02]"><i class="fas fa-headphones"></i><span>Listening</span></button>
+                <button onClick={() => setView('menu')} className="w-full py-4 text-slate-400 font-bold hover:text-indigo-600 transition-colors">Về Menu</button>
+              </div>
+            </div>
+          )}
+
+          {view === 'ai_reading' && aiReading && (
+            <div className="animate-pop h-[70vh] flex flex-col">
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-10">
+                <div className="mb-8">
+                  <h2 className="text-3xl font-black text-slate-800 leading-tight mb-6">{aiReading.title}</h2>
+                  <div className="p-10 bg-slate-50 rounded-[40px] border border-slate-100 font-serif text-lg leading-relaxed text-slate-700 text-justify shadow-inner">
+                    {aiReading.content.split(' ').map((word, i) => {
+                      const clean = word.replace(/[.,!?]/g, '');
+                      const isVocab = vocabList.some(v => v.word.toLowerCase() === clean.toLowerCase());
+                      return <span key={i} className={isVocab ? "font-black text-indigo-600 border-b-2 border-indigo-100 mx-0.5" : "mx-0.5"}>{word}{" "}</span>;
+                    })}
+                  </div>
                 </div>
-            `;
-            return container;
-        };
-
-        const startQuiz = () => {
-            state.quizPool = shuffle(state.vocabBank).map(v => ({
-                ...v,
-                fixedOptions: shuffle([...shuffle(state.vocabBank.filter(x => x.word !== v.word).map(x => x.definition)).slice(0, 3), v.definition])
-            }));
-            state.score = 0; state.lives = 3; state.timeLeft = 300; state.currentQuizIndex = 0; state.consecutiveWrong = 0;
-            state.view = 'quiz'; startTimer(); render();
-        };
-
-        const createQuiz = () => {
-            const item = state.quizPool[state.currentQuizIndex];
-            const container = document.createElement('div');
-            container.className = "bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full h-[580px] flex flex-col justify-between relative overflow-hidden";
-            const timerPercent = (state.timeLeft / 300) * 100;
-            
-            container.innerHTML = `
-                <div class="absolute top-0 left-0 h-1.5 bg-indigo-600 transition-all duration-1000" style="width: ${timerPercent}%"></div>
-                ${state.quizFeedback?.message ? `<div class="absolute inset-0 bg-red-600/90 z-50 flex items-center justify-center animate-pop"><div class="text-white text-center"><i class="fas fa-heart-broken text-5xl mb-2 heart-beat"></i><h3 class="text-2xl font-black uppercase">${state.quizFeedback.message}</h3></div></div>` : ''}
-                <div>
-                    <div class="flex justify-between items-center mb-6">
-                        <div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Score</span><span class="text-indigo-600 text-xl font-black">${state.score}</span></div>
-                        <div class="flex flex-col items-end"><div class="flex gap-1 mb-1" id="lives-container"></div><span id="timer-display" class="font-mono font-bold text-slate-600 text-sm">${formatTime(state.timeLeft)}</span></div>
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2 text-indigo-600 px-2"><LayoutGrid size={20} /><h3 className="font-black uppercase tracking-widest text-sm">LUYỆN TẬP DÙNG TỪ TRONG NGỮ CẢNH</h3></div>
+                  {aiReading.wordChoice.map((q, idx) => (
+                    <div key={idx} className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm">
+                      <p className="font-bold text-slate-700 mb-5 leading-snug italic">"{q.q}"</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {q.options.map(opt => {
+                          const isSelected = practiceAnswers[idx] === opt;
+                          const isCorrect = practiceSubmitted && opt === q.a;
+                          const isWrong = practiceSubmitted && isSelected && opt !== q.a;
+                          let btnStyle = "bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100";
+                          if (isSelected) btnStyle = "bg-indigo-600 text-white border-indigo-600 shadow-lg";
+                          if (practiceSubmitted) {
+                            if (isCorrect) btnStyle = "bg-green-500 text-white border-green-500 shadow-lg";
+                            else if (isWrong) btnStyle = "bg-red-500 text-white border-red-500";
+                            else btnStyle = "opacity-40 bg-slate-50 text-slate-300";
+                          }
+                          return (
+                            <button key={opt} disabled={practiceSubmitted} onClick={() => setPracticeAnswers(prev => ({ ...prev, [idx]: opt }))} className={`py-4 rounded-2xl font-black text-xs border-2 transition-all ${btnStyle}`}>
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div class="text-center mb-6"><h2 class="text-4xl font-black text-slate-800 mb-2 capitalize tracking-tight">${item.word}</h2><p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Chọn định nghĩa chính xác</p></div>
-                    <div class="grid gap-2.5" id="options-container"></div>
+                  ))}
                 </div>
-            `;
-            const livesCont = container.querySelector('#lives-container');
-            for(let i=0; i<3; i++) livesCont.innerHTML += `<i class="fas fa-heart ${state.lives > i ? 'text-red-500' : 'text-slate-200'}"></i>`;
-            item.fixedOptions.forEach((opt, idx) => {
-                const btn = document.createElement('button');
-                let btnClass = "border-slate-100 hover:border-indigo-200 hover:bg-slate-50";
-                if (state.quizFeedback) {
-                    if (idx === state.quizFeedback.correctIndex) btnClass = "bg-green-500 border-green-500 text-white shadow-lg";
-                    else if (!state.quizFeedback.isCorrect && idx === state.quizFeedback.selectedIndex) btnClass = "bg-red-500 border-red-500 text-white shadow-lg";
-                    else btnClass = "opacity-40";
-                }
-                btn.className = `p-4 rounded-2xl text-left font-medium border-2 transition-all duration-300 ${btnClass}`;
-                btn.innerText = opt;
-                btn.onclick = () => handleQuizAnswer(idx);
-                container.querySelector('#options-container').appendChild(btn);
-            });
-            return container;
-        };
+              </div>
+              <div className="pt-6 border-t border-slate-100 flex gap-3">
+                {!practiceSubmitted ? (
+                  <button onClick={() => setPracticeSubmitted(true)} className="flex-1 py-5 bg-slate-800 text-white rounded-2xl font-black shadow-lg hover:bg-slate-900 transition-all active:scale-95">NỘP BÀI TẬP</button>
+                ) : (
+                  <button onClick={() => setView('menu')} className="flex-1 py-5 bg-indigo-600 text-white rounded-2xl font-black shadow-lg hover:bg-indigo-700 transition-all active:scale-95">XONG PHIÊN HỌC</button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
-        const createReadingView = () => {
-            if (state.selectedReadingId) {
-                const level = state.readingLevels.find(l => l.id === state.selectedReadingId);
-                const container = document.createElement('div');
-                container.className = "bg-white rounded-3xl shadow-xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden animate-pop";
-                container.innerHTML = `
-                    <div class="px-8 py-4 border-b flex justify-between items-center bg-white z-10">
-                        <div class="flex items-center gap-3">
-                            <button onclick="state.selectedReadingId = null; render();" class="p-2 hover:bg-slate-100 rounded-xl"><i class="fas fa-chevron-left"></i></button>
-                            <h2 class="text-xl font-black uppercase">${level.title}</h2>
-                        </div>
-                    </div>
-                    <div class="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8">
-                        <div class="bg-slate-50 rounded-2xl p-8 border border-slate-100 font-serif text-lg leading-relaxed text-slate-700">${level.content}</div>
-                        <div class="space-y-4">
-                            <h3 class="text-indigo-600 font-black uppercase text-xs tracking-widest">I. Summary</h3>
-                            <div class="bg-emerald-50 p-6 rounded-2xl italic border border-emerald-100 text-slate-700 leading-loose">${level.summary}</div>
-                        </div>
-                        <div class="space-y-4">
-                            <h3 class="text-indigo-600 font-black uppercase text-xs tracking-widest">II. Comprehension</h3>
-                            ${level.comprehension.map((q, i) => `<div class="p-4 bg-white border border-slate-100 rounded-xl mb-3"><p class="font-bold text-sm mb-2">${i+1}. ${q.q}</p><div class="flex gap-2"><span class="px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-500">? Answer: ${q.a}</span></div></div>`).join('')}
-                        </div>
-                    </div>
-                `;
-                return container;
-            }
-
-            const container = document.createElement('div');
-            container.className = "bg-white rounded-3xl shadow-xl p-8 max-w-2xl w-full h-[600px] flex flex-col";
-            container.innerHTML = `
-                <div class="flex items-center justify-between mb-6">
-                    <div class="flex items-center gap-3"><button onclick="state.view = 'menu'; render();" class="p-2 hover:bg-slate-100 rounded-xl"><i class="fas fa-chevron-left"></i></button><h2 class="text-2xl font-bold">Luyện đọc</h2></div>
-                    <button onclick="generateAIContent('reading')" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 flex items-center gap-2">
-                        ${state.isGenerating ? '<i class="fas fa-spinner fa-spin"></i> Đang tạo...' : '<i class="fas fa-magic"></i> Tạo bài AI'}
-                    </button>
-                </div>
-                <div class="flex-1 overflow-y-auto custom-scrollbar grid gap-4">
-                    ${state.readingLevels.map(l => `<button onclick="state.selectedReadingId = ${l.id}; render();" class="flex items-center justify-between p-6 border-2 border-slate-100 rounded-2xl hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left"><div><div class="font-bold text-slate-800">${l.title}</div><div class="text-xs text-slate-400 uppercase font-bold">${l.wordCount}</div></div><i class="fas fa-chevron-right text-indigo-600"></i></button>`).join('')}
-                </div>`;
-            return container;
-        };
-
-        const createListeningView = () => {
-            const container = document.createElement('div');
-            container.className = "bg-white rounded-3xl shadow-xl p-8 max-w-2xl w-full h-[550px] flex flex-col";
-            container.innerHTML = `
-                <div class="flex items-center justify-between mb-6">
-                    <div class="flex items-center gap-3"><button onclick="state.view = 'menu'; render();" class="p-2 hover:bg-slate-100 rounded-xl"><i class="fas fa-chevron-left"></i></button><h2 class="text-2xl font-bold">Luyện nghe</h2></div>
-                    <button onclick="generateAIContent('listening')" class="bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-amber-600 flex items-center gap-2">
-                        ${state.isGenerating ? '<i class="fas fa-spinner fa-spin"></i> Đang tạo...' : '<i class="fas fa-magic"></i> Tạo bài Nghe AI'}
-                    </button>
-                </div>
-                <div class="flex-1 overflow-y-auto custom-scrollbar">
-                    ${state.currentListening ? `
-                        <div class="bg-slate-900 rounded-3xl p-8 text-white mb-6">
-                            <h3 class="text-xl font-bold mb-4">${state.currentListening.title}</h3>
-                            <div class="flex gap-4 items-center mb-6">
-                                <button onclick="playTTS(state.currentListening.content)" class="w-16 h-16 rounded-full bg-indigo-600 flex items-center justify-center hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/30">
-                                    ${state.isPlayingAudio ? '<i class="fas fa-spinner fa-spin text-2xl"></i>' : '<i class="fas fa-play text-2xl ml-1"></i>'}
-                                </button>
-                                <div><p class="text-xs font-bold text-slate-400 uppercase">Audio Lecture</p><p class="text-sm">Bấm để nghe giảng</p></div>
-                            </div>
-                            <div class="text-slate-400 text-sm italic leading-relaxed">"${state.currentListening.content}"</div>
-                        </div>
-                    ` : '<div class="text-center py-20 text-slate-400 italic">Bấm "Tạo bài Nghe AI" để bắt đầu.</div>'}
-                </div>
-            `;
-            return container;
-        };
-
-        const createResultView = () => {
-            const container = document.createElement('div');
-            container.className = "bg-white rounded-3xl shadow-2xl p-10 max-w-md w-full text-center border border-slate-100 animate-pop";
-            container.innerHTML = `
-                <div class="flex justify-center mb-6"><i class="fas ${state.lives <= 0 ? 'fa-skull-crossbones text-red-500' : 'fa-award text-amber-500'} text-6xl"></i></div>
-                <h2 class="text-xl font-bold text-slate-400 uppercase tracking-widest">${state.finalStatus || 'Kết quả'}</h2>
-                <div class="text-5xl my-6 font-black text-slate-800 tracking-tighter">${state.lives <= 0 ? 'GAME OVER' : 'XONG!'}</div>
-                <div class="bg-indigo-50 p-6 rounded-2xl mb-8"><div class="text-4xl font-black text-indigo-700">${state.score}</div><div class="text-[10px] text-indigo-400 uppercase font-black">Điểm cuối</div></div>
-                <button onclick="state.view = 'topics'; render();" class="w-full py-4 bg-slate-800 text-white rounded-2xl font-bold hover:bg-slate-900 shadow-lg">Quay về trang chính</button>
-            `;
-            return container;
-        };
-
-        window.onload = loadExternalData;
-    </script>
-</body>
-</html>
+export default App;
