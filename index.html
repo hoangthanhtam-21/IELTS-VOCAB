@@ -201,7 +201,21 @@ svg.donut{transform:rotate(-90deg);}
 .csv-drop:hover,.csv-drop.over{border-color:var(--accent);background:#1a1a10;}
 .csv-drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
 
-/* ── AI CHAT ── */
+/* ── SPELLING STEP ── */
+#spelling-screen{display:none;}
+.spell-tag{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text2);margin-bottom:10px;text-align:center;}
+.spell-listen{background:linear-gradient(135deg,#1a1a22,#16161e);border:1px solid var(--border);border-radius:20px;padding:32px 20px;text-align:center;margin-bottom:20px;}
+.spell-listen-icon{font-size:52px;margin-bottom:10px;}
+.spell-listen-lbl{font-size:14px;color:var(--text2);margin-bottom:16px;}
+.spell-listen-ph{font-size:15px;color:var(--accent2);margin-top:6px;}
+.spell-listen-type{font-size:12px;color:var(--text2);font-style:italic;margin-top:4px;}
+.spell-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.spell-opt{padding:14px 12px;background:var(--surface);border:2px solid var(--border);border-radius:12px;cursor:pointer;font-family:'Playfair Display',serif;font-size:17px;font-weight:700;text-align:center;color:var(--text);transition:all .15s;letter-spacing:.5px;}
+.spell-opt:hover:not(.disabled){border-color:var(--accent2);background:var(--surface2);}
+.spell-opt.correct{border-color:var(--success)!important;background:#102a10!important;color:var(--success)!important;}
+.spell-opt.wrong{border-color:var(--danger)!important;background:#2a1010!important;color:var(--danger)!important;animation:shake .3s ease;}
+.spell-opt.disabled{cursor:default;}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
 .chat-msg{max-width:82%;padding:11px 15px;border-radius:14px;font-size:14px;line-height:1.6;}
 .chat-msg.user{background:var(--accent2);color:#fff;align-self:flex-end;border-bottom-right-radius:4px;}
 .chat-msg.ai{background:var(--surface2);color:var(--text);align-self:flex-start;border-bottom-left-radius:4px;border:1px solid var(--border);}
@@ -273,7 +287,6 @@ svg.donut{transform:rotate(-90deg);}
     <button class="tab-btn active" onclick="switchTab('topics')">🗂 Chủ đề</button>
     <button class="tab-btn" onclick="switchTab('study')">🧠 Học</button>
     <button class="tab-btn" onclick="switchTab('quiz')">⚡ Quiz</button>
-    <button class="tab-btn" onclick="switchTab('chat')">💬 AI</button>
     <button class="tab-btn" onclick="switchTab('progress')">📊 Tiến độ</button>
   </div>
 
@@ -310,7 +323,21 @@ svg.donut{transform:rotate(-90deg);}
         <button class="acc-btn active" id="acc-us" onclick="setAccent('us')">🇺🇸 US</button>
         <button class="acc-btn" id="acc-uk" onclick="setAccent('uk')">🇬🇧 UK</button>
       </div>
-      <div class="card-wrap">
+      <!-- Spelling step (first encounter only) -->
+      <div id="spelling-screen">
+        <div class="spell-tag">BƯỚC 1 / 2 — NGHE VÀ CHỌN CHÍNH TẢ</div>
+        <div class="spell-listen">
+          <div class="spell-listen-icon">🎧</div>
+          <div class="spell-listen-lbl">Nghe và chọn từ đúng chính tả</div>
+          <button class="speak-btn" onclick="speakCurrent()" style="margin:0 auto"><span class="wave"><span></span><span></span><span></span></span> Nghe lại</button>
+          <div class="spell-listen-ph" id="spell-ph"></div>
+          <div class="spell-listen-type" id="spell-type"></div>
+        </div>
+        <div class="spell-opts" id="spell-opts"></div>
+        <div id="spell-feedback" style="display:none;text-align:center;padding:10px;font-size:14px;color:var(--success)"></div>
+      </div>
+
+      <div class="card-wrap" id="card-wrap-main">
         <div class="flashcard" id="flashcard" onclick="flipCard()">
           <div class="card-face cf">
             <div class="c-tag">TỪ VỰNG IELTS</div>
@@ -365,8 +392,9 @@ svg.donut{transform:rotate(-90deg);}
     <div id="quiz-main">
       <div class="qtype-tabs">
         <button class="qtype-btn active" id="qt-meaning" onclick="setQType('meaning')">📖 Chọn nghĩa</button>
-        <button class="qtype-btn" id="qt-word"    onclick="setQType('word')">✏️ Chọn từ</button>
-        <button class="qtype-btn" id="qt-random"  onclick="setQType('random')">🎲 Ngẫu nhiên</button>
+        <button class="qtype-btn" id="qt-word"      onclick="setQType('word')">✏️ Chọn từ</button>
+        <button class="qtype-btn" id="qt-translate" onclick="setQType('translate')">🇻🇳 Dịch câu</button>
+        <button class="qtype-btn" id="qt-random"    onclick="setQType('random')">🎲 Ngẫu nhiên</button>
       </div>
       <div class="quiz-q-card">
         <div class="q-type-lbl" id="q-lbl">Chọn nghĩa đúng</div>
@@ -376,6 +404,14 @@ svg.donut{transform:rotate(-90deg);}
         <button class="speak-btn" id="q-speak-btn" onclick="speakWord(document.getElementById('q-word').textContent)" style="margin-top:8px"><span class="wave"><span></span><span></span><span></span></span> Phát âm</button>
       </div>
       <div class="quiz-opts" id="quiz-opts"></div>
+      <!-- Translate mode: type answer -->
+      <div id="translate-area" style="display:none;margin-bottom:16px">
+        <div style="display:flex;gap:10px">
+          <input id="translate-input" placeholder="Nhập bản dịch tiếng Anh..." onkeydown="if(event.key==='Enter')checkTranslate()" style="flex:1;font-size:15px">
+          <button class="btn btn-p" onclick="checkTranslate()">Kiểm tra</button>
+        </div>
+        <div id="translate-feedback" style="display:none;margin-top:12px;padding:14px;border-radius:12px;font-size:14px;line-height:1.6"></div>
+      </div>
       <button class="quiz-next-btn" id="quiz-next" onclick="nextQ()">Câu tiếp theo →</button>
     </div>
     <div id="quiz-empty" style="display:none;text-align:center;padding:56px 20px;color:var(--text2)">
@@ -558,25 +594,6 @@ svg.donut{transform:rotate(-90deg);}
   </div>
 </div><!-- /screen-admin -->
 
-<!-- ══════════════════════════════════════════
-     STUDENT CHAT
-══════════════════════════════════════════ -->
-<div id="screen-chat-wrapper" style="display:none">
-  <div id="screen-chat" class="screen" style="display:block">
-    <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span class="section-title">💬 Hỏi AI về từ vựng</span>
-      <span style="font-size:12px;color:var(--text2);margin-left:auto" id="chat-topic-label"></span>
-    </div>
-    <div id="chat-messages" style="min-height:300px;max-height:480px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;margin-bottom:16px;padding:4px 2px"></div>
-    <div style="display:flex;gap:10px">
-      <input id="chat-input" placeholder="Hỏi về nghĩa, cách dùng, ví dụ câu..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}" style="flex:1">
-      <button class="btn btn-p" onclick="sendChat()" style="white-space:nowrap;flex-shrink:0">Gửi →</button>
-    </div>
-    <div id="chat-no-key" style="display:none;margin-top:10px;font-size:13px;color:var(--text2);text-align:center;padding:16px;background:var(--surface);border-radius:10px">
-      🤖 Tính năng AI chưa được cài đặt.<br>Liên hệ giáo viên để bật tính năng này.
-    </div>
-  </div>
-</div>
 
 </div><!-- /app -->
 <div class="toast" id="toast"></div>
@@ -796,7 +813,7 @@ function clearFilter(){ activeTopicId=null; initStudy(); }
 // ════════════════════════════════════
 //  SPACED REPETITION
 // ════════════════════════════════════
-let queue=[], qIdx=0, flipped=false;
+let queue=[], qIdx=0, flipped=false, spellingStep=false;
 
 function initStudy(){
   const t = activeTopicId ? (CLOUD.topics||[]).find(t=>t.id===activeTopicId) : null;
@@ -820,16 +837,129 @@ function showCard(){
   const w=queue[qIdx], tot=queue.length;
   document.getElementById('study-cnt').textContent=`${qIdx+1}/${tot}`;
   document.getElementById('study-bar').style.width=`${qIdx/tot*100}%`;
+  currentWord = w.word;
+
+  // New word → show spelling step first
+  if(w.status === 'new'){
+    showSpellingStep(w);
+  } else {
+    showFlashcard(w);
+  }
+}
+
+// ── SPELLING STEP ──
+function showSpellingStep(w){
+  spellingStep = true;
+  document.getElementById('spelling-screen').style.display = 'block';
+  document.getElementById('card-wrap-main').style.display  = 'none';
+  document.getElementById('rating-area').classList.remove('show');
+  document.getElementById('spell-feedback').style.display  = 'none';
+  document.getElementById('ai-explain-box').style.display  = 'none';
+
+  document.getElementById('spell-ph').textContent   = w.phonetic || '';
+  document.getElementById('spell-type').textContent = w.type ? `(${w.type})` : '';
+
+  // Generate 3 distractors
+  const opts = generateSpellingOpts(w.word);
+  document.getElementById('spell-opts').innerHTML = opts.map(o =>
+    `<button class="spell-opt" onclick="checkSpelling(this,'${o.replace(/'/g,"\\'")}','${w.word.replace(/'/g,"\\'")}')">
+      ${o}
+    </button>`
+  ).join('');
+
+  // Auto-play pronunciation
+  clearTimeout(speakTimer);
+  speakTimer = setTimeout(()=>speakWord(w.word), 300);
+}
+
+function generateSpellingOpts(word){
+  const distractors = new Set();
+  const w = word.toLowerCase();
+
+  // Strategy 1: swap adjacent letters
+  for(let i=0; i<w.length-1 && distractors.size<2; i++){
+    const arr = w.split('');
+    [arr[i], arr[i+1]] = [arr[i+1], arr[i]];
+    const d = arr.join('');
+    if(d !== w) distractors.add(d);
+  }
+  // Strategy 2: double a consonant / remove double
+  const consonants = 'bcdfghjklmnpqrstvwxyz';
+  for(let i=0; i<w.length && distractors.size<3; i++){
+    if(consonants.includes(w[i])){
+      // double it if not already doubled
+      if(w[i+1] !== w[i]){
+        distractors.add(w.slice(0,i+1) + w[i] + w.slice(i+1));
+      }
+      // remove double if doubled
+      if(w[i] === w[i-1]){
+        distractors.add(w.slice(0,i) + w.slice(i+1));
+      }
+    }
+  }
+  // Strategy 3: common vowel swaps (a↔e, i↔e, a↔o, ou↔ow)
+  const vowelSwaps = [['a','e'],['i','e'],['a','o'],['ou','ow'],['ie','ei'],['tion','sion'],['ance','ence'],['able','ible']];
+  for(const [a,b] of vowelSwaps){
+    if(distractors.size >= 3) break;
+    if(w.includes(a)) distractors.add(w.replace(a, b));
+    if(w.includes(b)) distractors.add(w.replace(b, a));
+  }
+  // Strategy 4: random letter change as last resort
+  while(distractors.size < 3){
+    const arr = w.split('');
+    const i = Math.floor(Math.random() * arr.length);
+    const alphabet = 'abcdefghijklmnoprstuvwy';
+    arr[i] = alphabet[Math.floor(Math.random()*alphabet.length)];
+    const d = arr.join('');
+    if(d !== w && d.length === w.length) distractors.add(d);
+  }
+
+  // Mix correct answer with 3 distractors, shuffle
+  const all = [word, ...[...distractors].slice(0,3)];
+  return all.sort(()=>Math.random()-.5);
+}
+
+function checkSpelling(btn, selected, correct){
+  // Disable all options
+  document.querySelectorAll('.spell-opt').forEach(b=>b.classList.add('disabled'));
+
+  if(selected.toLowerCase() === correct.toLowerCase()){
+    btn.classList.add('correct');
+    const fb = document.getElementById('spell-feedback');
+    fb.style.display = 'block';
+    fb.textContent = '✅ Chính xác! Chuyển sang học nghĩa...';
+    speakWord(correct);
+    // After short delay, show flashcard
+    setTimeout(()=>showFlashcard(queue[qIdx]), 900);
+  } else {
+    btn.classList.add('wrong');
+    speakWord(correct);
+    // Re-enable after shake animation so they can try again
+    setTimeout(()=>{
+      document.querySelectorAll('.spell-opt').forEach(b=>{
+        if(!b.classList.contains('correct')) b.classList.remove('disabled');
+      });
+    }, 700);
+  }
+}
+
+// ── FLASHCARD ──
+function showFlashcard(w){
+  spellingStep = false;
+  document.getElementById('spelling-screen').style.display = 'none';
+  document.getElementById('card-wrap-main').style.display  = 'block';
+
   document.getElementById('cf-word').textContent = w.word;
   document.getElementById('cf-ph').textContent   = w.phonetic||'';
   document.getElementById('cf-type').textContent = w.type?`(${w.type})`:'';
   document.getElementById('cb-def').textContent  = w.definition||'—';
   document.getElementById('cb-vn').textContent   = w.vietnamese?`🇻🇳 ${w.vietnamese}`:'';
   document.getElementById('cb-ex').textContent   = w.example?`"${w.example}"`:'';
+  document.getElementById('ai-explain-box').style.display = 'none';
   document.getElementById('flashcard').classList.remove('flipped');
   flipped=false;
   document.getElementById('rating-area').classList.remove('show');
-  currentWord = w.word;
+
   clearTimeout(speakTimer); speakTimer=setTimeout(()=>speakWord(w.word),400);
   [0,1,2,3].forEach(q=>{
     const s=sm2Sim(w,q);
@@ -838,6 +968,7 @@ function showCard(){
 }
 
 function flipCard(){
+  if(spellingStep) return; // ignore clicks during spelling step
   const fc = document.getElementById('flashcard');
   flipped=!flipped; fc.classList.toggle('flipped',flipped);
   if(flipped) setTimeout(()=>document.getElementById('rating-area').classList.add('show'),300);
@@ -890,18 +1021,49 @@ function initQuiz(){
   if(!empty) nextQ();
 }
 
+// Words that have a Vietnamese translation (needed for translate mode)
+function wordsWithVN(){
+  const pool = activeTopicId ? topicWords(activeTopicId) : allWords();
+  return pool.filter(w => w.vietnamese && w.example);
+}
+
 function nextQ(){
   const words = activeTopicId ? topicWords(activeTopicId) : allWords();
   if(words.length<4) return;
-  const type = qType==='random' ? (Math.random()<.5?'meaning':'word') : qType;
-  const idx = Math.floor(Math.random()*words.length);
-  const correct = words[idx];
-  let pool=[...words]; pool.splice(idx,1);
+
+  // Resolve actual type (random picks from all 3)
+  let type = qType;
+  if(type==='random'){
+    const hasVN = wordsWithVN().length >= 2;
+    const choices = hasVN ? ['meaning','word','translate'] : ['meaning','word'];
+    type = choices[Math.floor(Math.random()*choices.length)];
+  }
+
+  // translate mode needs words with example+vietnamese
+  const pool = type==='translate' ? wordsWithVN() : words;
+  if(pool.length < (type==='translate' ? 1 : 4)){
+    // fallback to meaning if not enough translate words
+    type = 'meaning';
+  }
+
+  const idx = Math.floor(Math.random()*pool.length);
+  const correct = pool[idx];
+  let distPool=[...words].filter(w=>w.word!==correct.word);
   const dist=[];
-  while(dist.length<3&&pool.length){ const r=Math.floor(Math.random()*pool.length); dist.push(pool.splice(r,1)[0]); }
+  while(dist.length<3&&distPool.length){ const r=Math.floor(Math.random()*distPool.length); dist.push(distPool.splice(r,1)[0]); }
   const opts=[correct,...dist].sort(()=>Math.random()-.5);
+
   document.getElementById('quiz-next').classList.remove('show');
-  currentWord=correct.word;
+  document.getElementById('quiz-opts').style.display = 'grid';
+  document.getElementById('translate-area').style.display = 'none';
+  document.getElementById('translate-feedback').style.display = 'none';
+  // Reset translate input
+  const ti = document.getElementById('translate-input');
+  ti.value=''; ti.disabled=false;
+  const tb = document.querySelector('#translate-area .btn-p');
+  if(tb) tb.disabled=false;
+  currentWord = correct.word;
+  currentCorrect = correct;
 
   if(type==='meaning'){
     document.getElementById('q-lbl').textContent='📖 Chọn nghĩa đúng của từ';
@@ -915,7 +1077,8 @@ function nextQ(){
       `<button class="q-opt" data-id="${o.topicId}||${o.word}"
          onclick="checkQ(this,'${o.topicId}||${o.word}','${correct.topicId}||${correct.word}')">
          ${o.definition||o.vietnamese||'—'}</button>`).join('');
-  } else {
+
+  } else if(type==='word'){
     document.getElementById('q-lbl').textContent='✏️ Chọn từ đúng điền vào câu';
     document.getElementById('q-word').style.display='none';
     document.getElementById('q-ph').textContent='';
@@ -931,7 +1094,72 @@ function nextQ(){
          onclick="checkQ(this,'${o.topicId}||${o.word}','${correct.topicId}||${correct.word}')"
          style="text-align:center;font-family:'Playfair Display',serif;font-size:16px;font-weight:700">
          ${o.word}</button>`).join('');
+
+  } else { // translate
+    document.getElementById('q-lbl').textContent='🇻🇳 Dịch câu sau sang tiếng Anh';
+    document.getElementById('q-word').style.display='none';
+    document.getElementById('q-ph').textContent='';
+    document.getElementById('q-speak-btn').style.display='none';
+    // Show Vietnamese sentence
+    const viSentence = buildViSentence(correct);
+    document.getElementById('q-sent').innerHTML =
+      `<span style="font-size:16px;font-weight:600;color:var(--accent3)">${viSentence}</span>`;
+    document.getElementById('q-sent').style.display='block';
+    document.getElementById('quiz-opts').style.display='none';
+    document.getElementById('translate-area').style.display='block';
+    document.getElementById('translate-input').value='';
+    setTimeout(()=>document.getElementById('translate-input').focus(), 100);
   }
+}
+
+// Build a Vietnamese prompt sentence for translate mode
+function buildViSentence(w){
+  // Use Vietnamese meaning of the example if possible, otherwise prompt from definition
+  if(w.vietnamese){
+    // Show a cue: "Nghĩa: [vietnamese]" plus context hint
+    return w.vietnamese.charAt(0).toUpperCase() + w.vietnamese.slice(1);
+  }
+  return w.definition || w.word;
+}
+
+let currentCorrect = null;
+
+function checkTranslate(){
+  const input = document.getElementById('translate-input');
+  const answer = input.value.trim().toLowerCase();
+  if(!answer) return;
+
+  input.disabled = true;
+  document.querySelector('#translate-area .btn-p').disabled = true;
+
+  const w = currentCorrect;
+  const correctWord = w.word.toLowerCase();
+
+  // Check if correct word appears in the answer
+  const regex = new RegExp('\\b' + correctWord.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\b','i');
+  const isCorrect = regex.test(answer);
+
+  const fb = document.getElementById('translate-feedback');
+  fb.style.display='block';
+
+  if(isCorrect){
+    qC++; qT++;
+    fb.style.background='#102a10'; fb.style.border='1px solid var(--success)'; fb.style.color='var(--success)';
+    fb.innerHTML=`✅ <strong>Chính xác!</strong><br>
+      <span style="color:var(--text2)">Gợi ý câu hoàn chỉnh:</span><br>
+      <em style="color:var(--text)">"${w.example}"</em>`;
+    showToast('✅ Chính xác!');
+    setTimeout(()=>speakWord(w.word), 400);
+  } else {
+    qW++; qT++;
+    fb.style.background='#2a1010'; fb.style.border='1px solid var(--danger)'; fb.style.color='var(--danger)';
+    fb.innerHTML=`❌ <strong>Chưa đúng!</strong> Từ cần dùng là: <strong style="color:var(--accent);font-family:'Playfair Display',serif;font-size:16px">${w.word}</strong><br>
+      <span style="color:var(--text2);font-size:13px">Câu hoàn chỉnh:</span><br>
+      <em style="color:var(--text);font-size:13px">"${w.example}"</em>`;
+    showToast('❌ Chưa đúng!');
+  }
+  updateQStats();
+  document.getElementById('quiz-next').classList.add('show');
 }
 
 function checkQ(btn,selId,corrId){
@@ -992,16 +1220,13 @@ function showOnly(id){
 function switchTab(tab){
   document.querySelectorAll('#student-app .screen').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  const chatWrap = document.getElementById('screen-chat-wrapper');
-  chatWrap.style.display = tab==='chat' ? 'block' : 'none';
-  if(tab !== 'chat') document.getElementById('screen-'+tab).classList.add('active');
-  ['topics','study','quiz','chat','progress'].forEach((t,i)=>{
+  document.getElementById('screen-'+tab).classList.add('active');
+  ['topics','study','quiz','progress'].forEach((t,i)=>{
     if(t===tab) document.querySelectorAll('.tab-btn')[i].classList.add('active');
   });
   if(tab==='topics')   renderTopicGrid();
   if(tab==='study')    initStudy();
   if(tab==='quiz')     initQuiz();
-  if(tab==='chat')     initChat();
   if(tab==='progress') renderProgress();
 }
 function toStudent(){
@@ -1198,7 +1423,7 @@ async function syncCloud(){
 // ════════════════════════════════════
 //  AUDIO
 // ════════════════════════════════════
-let currentAccent='us', currentWord='', speakTimer=null, activeAudio=null;
+let currentAccent='us', currentWord='', speakTimer=null;
 function setAccent(a){
   currentAccent=a;
   document.querySelectorAll('.acc-btn').forEach(b=>b.classList.remove('active'));
@@ -1206,31 +1431,63 @@ function setAccent(a){
   if(currentWord) speakWord(currentWord);
 }
 function setSpeaking(on){ document.querySelectorAll('.speak-btn').forEach(b=>on?b.classList.add('speaking'):b.classList.remove('speaking')); }
+
+// Preload voices (some browsers need this)
+let _voices = [];
+function getVoices(){
+  if(_voices.length) return _voices;
+  _voices = window.speechSynthesis?.getVoices() || [];
+  return _voices;
+}
+if(window.speechSynthesis){
+  window.speechSynthesis.onvoiceschanged = () => { _voices = window.speechSynthesis.getVoices(); };
+}
+
+function pickVoice(accent){
+  const voices = getVoices();
+  if(!voices.length) return null;
+  const lang = accent==='us' ? 'en-US' : 'en-GB';
+
+  // Priority list for US
+  const usPriority = ['Samantha','Alex','Karen','Google US English','Microsoft Aria','Microsoft Guy'];
+  // Priority list for UK
+  const ukPriority = ['Daniel','Google UK English Female','Google UK English Male','Microsoft Hazel','Microsoft George'];
+  const priority   = accent==='us' ? usPriority : ukPriority;
+
+  // Try exact name match first
+  for(const name of priority){
+    const v = voices.find(v=>v.name.includes(name));
+    if(v) return v;
+  }
+  // Fallback: exact lang match
+  const exact = voices.find(v=>v.lang===lang);
+  if(exact) return exact;
+  // Last resort: any English
+  return voices.find(v=>v.lang.startsWith('en')) || null;
+}
+
 function speakWord(word){
   if(!word||word==='—') return;
-  word=word.trim().toLowerCase();
+  word = word.trim();
   if(activeAudio){ activeAudio.pause(); activeAudio=null; }
   if(window.speechSynthesis) window.speechSynthesis.cancel();
   setSpeaking(true);
-  const lang=currentAccent==='us'?'en-US':'en-GB';
-  const url=`https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&q=${encodeURIComponent(word)}&client=tw-ob&ttsspeed=0.8`;
-  const audio=new Audio(url);
-  activeAudio=audio;
-  audio.onended=()=>{ setSpeaking(false); activeAudio=null; };
-  audio.onerror=()=>{ activeAudio=null; wsFallback(word); };
-  audio.play().catch(()=>{ activeAudio=null; wsFallback(word); });
-}
-function speakCurrent(){ speakWord(currentWord); }
-function wsFallback(word){
+
   if(!window.speechSynthesis){ setSpeaking(false); return; }
-  const u=new SpeechSynthesisUtterance(word);
-  u.lang=currentAccent==='us'?'en-US':'en-GB'; u.rate=0.78;
-  const voices=window.speechSynthesis.getVoices();
-  const best=voices.find(v=>v.lang===u.lang)||voices.find(v=>v.lang.startsWith('en'));
-  if(best) u.voice=best;
-  u.onend=u.onerror=()=>setSpeaking(false);
+
+  const u = new SpeechSynthesisUtterance(word);
+  u.lang  = currentAccent==='us' ? 'en-US' : 'en-GB';
+  u.rate  = 0.72;   // slower, clearer
+  u.pitch = 1.0;
+
+  const voice = pickVoice(currentAccent);
+  if(voice) u.voice = voice;
+
+  u.onend   = () => setSpeaking(false);
+  u.onerror = () => setSpeaking(false);
   window.speechSynthesis.speak(u);
 }
+function speakCurrent(){ speakWord(currentWord); }
 
 // ════════════════════════════════════
 //  TOAST
@@ -1350,74 +1607,6 @@ Be brief and practical.`;
 }
 
 // ── STUDENT CHAT ──
-let chatHistory = [];
-
-function initChat(){
-  const hasKey = !!CFG.claudeKey;
-  document.getElementById('chat-no-key').style.display = hasKey ? 'none' : 'block';
-  document.getElementById('chat-input').style.display  = hasKey ? 'block' : 'none';
-  document.querySelector('#screen-chat-wrapper .btn-p').style.display = hasKey ? 'inline-flex' : 'none';
-  if(hasKey && chatHistory.length===0){
-    const topic = activeTopicId ? (CLOUD.topics||[]).find(t=>t.id===activeTopicId) : null;
-    const label = topic ? `Đang học: ${topic.emoji||''} ${topic.name}` : 'Tất cả từ vựng';
-    document.getElementById('chat-topic-label').textContent = label;
-    appendChatMsg('ai', `Xin chào! 👋 Tôi là AI trợ giảng IELTS. Bạn có thể hỏi tôi về nghĩa từ, cách dùng, câu ví dụ, hay bất kỳ điều gì về từ vựng IELTS.\n\n${topic ? `Bạn đang học chủ đề **${topic.name}** — hãy hỏi về bất kỳ từ nào trong chủ đề này!` : 'Hỏi về từ vựng IELTS bất kỳ nhé!'}`);
-  }
-}
-
-function appendChatMsg(role, text){
-  const el = document.createElement('div');
-  el.className = `chat-msg ${role}`;
-  el.innerHTML = text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
-  document.getElementById('chat-messages').appendChild(el);
-  el.scrollIntoView({behavior:'smooth', block:'end'});
-  return el;
-}
-
-async function sendChat(){
-  const input = document.getElementById('chat-input');
-  const msg = input.value.trim();
-  if(!msg || !CFG.claudeKey) return;
-  input.value='';
-  appendChatMsg('user', msg);
-  chatHistory.push({role:'user', content:msg});
-
-  const loading = appendChatMsg('ai', '💭 Đang suy nghĩ...');
-  loading.classList.add('loading');
-
-  const topic = activeTopicId ? (CLOUD.topics||[]).find(t=>t.id===activeTopicId) : null;
-  const wordList = topic ? (topic.words||[]).slice(0,30).map(w=>w.word).join(', ') : '';
-  const system = `You are a helpful IELTS vocabulary tutor. Answer in Vietnamese unless the user writes in English. Keep answers concise and practical.${wordList ? `\nThe student is studying these words: ${wordList}` : ''}`;
-
-  try {
-    const res = await fetch(CLAUDE_URL, {
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-api-key': CFG.claudeKey,
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true'
-      },
-      body: JSON.stringify({
-        model:'claude-sonnet-4-5-20250929',
-        max_tokens:600,
-        system,
-        messages: chatHistory
-      })
-    });
-    const data = await res.json();
-    const reply = data.content?.[0]?.text || '❌ Không nhận được phản hồi';
-    chatHistory.push({role:'assistant', content:reply});
-    loading.remove();
-    appendChatMsg('ai', reply);
-    // keep history short
-    if(chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
-  } catch(e){
-    loading.remove();
-    appendChatMsg('ai', '❌ Lỗi kết nối. Thử lại sau!');
-  }
-}
-
 // ════════════════════════════════════
 //  GO
 // ════════════════════════════════════
