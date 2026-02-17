@@ -920,7 +920,6 @@ function generateSpellingOpts(word){
 }
 
 function checkSpelling(btn, selected, correct){
-  // Disable all options
   document.querySelectorAll('.spell-opt').forEach(b=>b.classList.add('disabled'));
 
   if(selected.toLowerCase() === correct.toLowerCase()){
@@ -928,13 +927,30 @@ function checkSpelling(btn, selected, correct){
     const fb = document.getElementById('spell-feedback');
     fb.style.display = 'block';
     fb.textContent = '✅ Chính xác! Chuyển sang học nghĩa...';
-    speakWord(correct);
-    // After short delay, show flashcard
-    setTimeout(()=>showFlashcard(queue[qIdx]), 900);
+
+    // Speak then transition — use both onend and a max-wait fallback
+    if(window.speechSynthesis) window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(correct);
+    u.lang = currentAccent==='us' ? 'en-US' : 'en-GB';
+    u.rate = 0.72;
+    const voice = pickVoice(currentAccent);
+    if(voice) u.voice = voice;
+
+    let transitioned = false;
+    const doTransition = () => {
+      if(transitioned) return;
+      transitioned = true;
+      showFlashcard(queue[qIdx]);
+    };
+    u.onend   = () => setTimeout(doTransition, 300);
+    u.onerror = () => setTimeout(doTransition, 300);
+    window.speechSynthesis.speak(u);
+    // Hard fallback: always transition after 2.5s even if speech fails silently
+    setTimeout(doTransition, 2500);
+
   } else {
     btn.classList.add('wrong');
     speakWord(correct);
-    // Re-enable after shake animation so they can try again
     setTimeout(()=>{
       document.querySelectorAll('.spell-opt').forEach(b=>{
         if(!b.classList.contains('correct')) b.classList.remove('disabled');
@@ -1096,30 +1112,34 @@ function nextQ(){
          ${o.word}</button>`).join('');
 
   } else { // translate
-    document.getElementById('q-lbl').textContent='🇻🇳 Dịch câu sau sang tiếng Anh';
+    document.getElementById('q-lbl').textContent='🇻🇳 Dịch sang tiếng Anh — điền từ còn thiếu';
     document.getElementById('q-word').style.display='none';
     document.getElementById('q-ph').textContent='';
     document.getElementById('q-speak-btn').style.display='none';
-    // Show Vietnamese sentence
-    const viSentence = buildViSentence(correct);
+
+    // Show English sentence with the target word blanked out
+    // + Vietnamese meaning as hint
+    const example = correct.example || '';
+    const masked = example
+      ? example.replace(
+          new RegExp('\\b'+correct.word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\w*\\b','gi'),
+          '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:700;text-align:center">?????</span>'
+        )
+      : '';
+
+    const hint = correct.vietnamese
+      ? `<div style="font-size:13px;color:var(--text2);margin-top:10px">💡 Gợi ý: <em style="color:var(--accent3)">${correct.vietnamese}</em></div>`
+      : '';
+
     document.getElementById('q-sent').innerHTML =
-      `<span style="font-size:16px;font-weight:600;color:var(--accent3)">${viSentence}</span>`;
+      `<div style="font-size:15px;line-height:1.8;color:var(--text)">${masked||`<span style='color:var(--text2)'>Dịch: <em>${correct.vietnamese||correct.definition}</em></span>`}</div>${hint}`;
     document.getElementById('q-sent').style.display='block';
     document.getElementById('quiz-opts').style.display='none';
     document.getElementById('translate-area').style.display='block';
     document.getElementById('translate-input').value='';
+    document.getElementById('translate-input').placeholder=`Nhập từ: ${correct.phonetic||correct.word}`;
     setTimeout(()=>document.getElementById('translate-input').focus(), 100);
   }
-}
-
-// Build a Vietnamese prompt sentence for translate mode
-function buildViSentence(w){
-  // Use Vietnamese meaning of the example if possible, otherwise prompt from definition
-  if(w.vietnamese){
-    // Show a cue: "Nghĩa: [vietnamese]" plus context hint
-    return w.vietnamese.charAt(0).toUpperCase() + w.vietnamese.slice(1);
-  }
-  return w.definition || w.word;
 }
 
 let currentCorrect = null;
@@ -1469,23 +1489,35 @@ function pickVoice(accent){
 function speakWord(word){
   if(!word||word==='—') return;
   word = word.trim();
-  if(activeAudio){ activeAudio.pause(); activeAudio=null; }
   if(window.speechSynthesis) window.speechSynthesis.cancel();
   setSpeaking(true);
 
   if(!window.speechSynthesis){ setSpeaking(false); return; }
 
-  const u = new SpeechSynthesisUtterance(word);
-  u.lang  = currentAccent==='us' ? 'en-US' : 'en-GB';
-  u.rate  = 0.72;   // slower, clearer
-  u.pitch = 1.0;
+  // Voices may not be ready yet — retry once if empty
+  const trySpeak = () => {
+    const u = new SpeechSynthesisUtterance(word);
+    u.lang  = currentAccent==='us' ? 'en-US' : 'en-GB';
+    u.rate  = 0.72;
+    u.pitch = 1.0;
+    const voice = pickVoice(currentAccent);
+    if(voice) u.voice = voice;
+    u.onend   = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(u);
+  };
 
-  const voice = pickVoice(currentAccent);
-  if(voice) u.voice = voice;
-
-  u.onend   = () => setSpeaking(false);
-  u.onerror = () => setSpeaking(false);
-  window.speechSynthesis.speak(u);
+  // If voices not loaded yet, wait for them
+  if(!getVoices().length){
+    window.speechSynthesis.onvoiceschanged = () => {
+      _voices = window.speechSynthesis.getVoices();
+      trySpeak();
+    };
+    // Also try after short delay as fallback (some browsers never fire onvoiceschanged)
+    setTimeout(trySpeak, 250);
+  } else {
+    trySpeak();
+  }
 }
 function speakCurrent(){ speakWord(currentWord); }
 
