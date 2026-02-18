@@ -221,12 +221,13 @@ svg.donut{transform:rotate(-90deg);}
 .chat-msg.ai{background:var(--surface2);color:var(--text);align-self:flex-start;border-bottom-left-radius:4px;border:1px solid var(--border);}
 .chat-msg.loading{opacity:.6;font-style:italic;}
 
-/* ── BALLOON GAME ── */
-.balloon{position:absolute;cursor:pointer;transition:transform .15s;user-select:none;}
-.balloon:hover{transform:scale(1.05);}
-.balloon-inner{position:relative;width:70px;height:85px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5);box-shadow:inset -5px -5px 15px rgba(0,0,0,.2),inset 5px 5px 15px rgba(255,255,255,.3);animation:float 3s ease-in-out infinite;}
-@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
-.balloon-string{position:absolute;top:100%;left:50%;width:1px;height:30px;background:rgba(255,255,255,.4);transform-origin:top;}
+/* ── FILL BLANK EXERCISE ── */
+.fb-blank{display:inline-block;min-width:90px;padding:2px 8px;margin:0 3px;border-bottom:2px solid var(--accent2);color:var(--accent2);font-weight:600;cursor:pointer;transition:all .2s;vertical-align:baseline;}
+.fb-blank:hover{background:var(--surface2);}
+.fb-blank.filled{color:var(--accent);border-color:var(--accent);}
+.fb-word{display:inline-block;padding:7px 14px;background:var(--surface2);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;transition:all .15s;user-select:none;}
+.fb-word:hover{border-color:var(--accent2);transform:translateY(-1px);}
+.fb-word.used{opacity:.3;cursor:not-allowed;pointer-events:none;}
 
 @media(max-width:600px){
   .c-word{font-size:28px;}.quiz-opts{grid-template-columns:1fr;}
@@ -400,7 +401,7 @@ svg.donut{transform:rotate(-90deg);}
       <div class="qtype-tabs">
         <button class="qtype-btn active" id="qt-meaning" onclick="setQType('meaning')">📖 Chọn nghĩa</button>
         <button class="qtype-btn" id="qt-word"      onclick="setQType('word')">✏️ Chọn từ</button>
-        <button class="qtype-btn" id="qt-balloon"   onclick="setQType('balloon')">🎈 Bắn bóng</button>
+        <button class="qtype-btn" id="qt-fillblank" onclick="setQType('fillblank')">📝 Điền từ</button>
         <button class="qtype-btn" id="qt-random"    onclick="setQType('random')">🎲 Ngẫu nhiên</button>
       </div>
       <div class="quiz-q-card">
@@ -411,22 +412,20 @@ svg.donut{transform:rotate(-90deg);}
         <button class="speak-btn" id="q-speak-btn" onclick="speakWord(document.getElementById('q-word').textContent)" style="margin-top:8px"><span class="wave"><span></span><span></span><span></span></span> Phát âm</button>
       </div>
       <div class="quiz-opts" id="quiz-opts"></div>
-      <!-- Balloon game -->
-      <div id="balloon-game" style="display:none">
-        <div style="text-align:center;margin-bottom:12px">
-          <div style="display:inline-flex;gap:16px;align-items:center;background:var(--surface2);padding:10px 20px;border-radius:12px">
-            <div style="font-size:13px;color:var(--text2)">Level: <strong style="color:var(--accent);font-size:18px" id="game-level">1</strong></div>
-            <div style="font-size:13px;color:var(--text2)">Điểm: <strong style="color:var(--success);font-size:18px" id="game-score">0</strong></div>
-            <div style="font-size:13px;color:var(--text2)">❤️ <strong style="color:var(--danger);font-size:18px" id="game-lives">3</strong></div>
-          </div>
+      <!-- Fill blank exercise -->
+      <div id="fillblank-ex" style="display:none">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:16px">
+          <div style="font-size:14px;line-height:2;color:var(--text)" id="fb-passage"></div>
         </div>
-        <div id="game-canvas-wrap" style="position:relative;width:100%;height:420px;background:linear-gradient(180deg,#0a0a12 0%,#16161e 100%);border-radius:16px;overflow:hidden;border:2px solid var(--border)"></div>
-        <div id="game-over" style="display:none;text-align:center;margin-top:16px;padding:20px;background:var(--surface2);border-radius:12px;border:1px solid var(--border)">
-          <div style="font-size:42px;margin-bottom:8px">💥</div>
-          <div style="font-size:18px;font-weight:700;margin-bottom:6px;color:var(--danger)">Game Over!</div>
-          <div style="font-size:14px;color:var(--text2);margin-bottom:14px">Tổng điểm: <strong style="color:var(--accent);font-size:20px" id="final-score">0</strong></div>
-          <button class="btn btn-p" onclick="startBalloonGame()">🔄 Chơi lại</button>
+        <div style="margin-bottom:14px">
+          <div style="font-size:12px;color:var(--text2);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase">Chọn từ để điền:</div>
+          <div id="fb-wordbank" style="display:flex;gap:8px;flex-wrap:wrap"></div>
         </div>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <button class="btn btn-p" onclick="checkFillBlank()">✓ Kiểm tra</button>
+          <button class="btn btn-s" onclick="resetFillBlank()">↻ Làm lại</button>
+        </div>
+        <div id="fb-feedback" style="display:none;margin-top:14px;padding:14px;border-radius:12px;font-size:14px;line-height:1.6"></div>
       </div>
       <button class="quiz-next-btn" id="quiz-next" onclick="nextQ()">Câu tiếp theo →</button>
     </div>
@@ -1060,21 +1059,21 @@ function nextQ(){
   let type = qType==='random' ? (Math.random()<0.5?'meaning':'word') : qType;
 
   // Balloon mode starts the game instead of showing a question
-  if(type==='balloon'){
+  if(type==='fillblank'){
     document.getElementById('q-lbl').style.display='none';
     document.getElementById('q-word').style.display='none';
     document.getElementById('q-ph').style.display='none';
     document.getElementById('q-sent').style.display='none';
     document.getElementById('q-speak-btn').style.display='none';
     document.getElementById('quiz-opts').style.display='none';
-    document.getElementById('balloon-game').style.display='block';
+    document.getElementById('fillblank-ex').style.display='block';
     document.getElementById('quiz-next').style.display='none';
-    startBalloonGame();
+    generateFillBlank();
     return;
   }
 
-  // Hide balloon game for normal quiz modes
-  document.getElementById('balloon-game').style.display='none';
+  // Hide fill-blank for normal quiz modes
+  document.getElementById('fillblank-ex').style.display='none';
   document.getElementById('q-lbl').style.display='block';
   document.getElementById('quiz-opts').style.display='grid';
   document.getElementById('quiz-next').classList.remove('show');
@@ -1120,135 +1119,168 @@ function nextQ(){
 }
 
 // ════════════════════════════════════
-//  BALLOON GAME
+//  FILL BLANK EXERCISE
 // ════════════════════════════════════
-let gameLevel=1, gameScore=0, gameLives=3, gameBalloons=[], gameInterval=null, gameTargetWord=null, gameRunning=false;
+let fbAnswers = {}; // {blankId: correctWord}
+let fbUserAnswers = {}; // {blankId: selectedWord}
 
-function startBalloonGame(){
-  // Reset game
-  gameLevel=1; gameScore=0; gameLives=3; gameBalloons=[]; gameRunning=true;
-  document.getElementById('game-level').textContent=gameLevel;
-  document.getElementById('game-score').textContent=gameScore;
-  document.getElementById('game-lives').textContent=gameLives;
-  document.getElementById('game-over').style.display='none';
-  const canvas = document.getElementById('game-canvas-wrap');
-  canvas.innerHTML=''; // clear old balloons
-
-  // Start spawning balloons
-  spawnBalloon();
-  gameInterval = setInterval(spawnBalloon, Math.max(2000 - (gameLevel-1)*200, 800));
-}
-
-function spawnBalloon(){
-  if(!gameRunning || gameLives<=0) return;
-
+async function generateFillBlank(){
   const words = activeTopicId ? topicWords(activeTopicId) : allWords();
-  if(words.length<3){ endGame(); return; }
-
-  // Pick random target word and 2 distractors
-  const idx = Math.floor(Math.random()*words.length);
-  const correct = words[idx];
-  let pool = [...words].filter(w=>w.word!==correct.word);
-  const distractors = [];
-  while(distractors.length<2 && pool.length){
-    const r = Math.floor(Math.random()*pool.length);
-    distractors.push(pool.splice(r,1)[0]);
+  if(words.length < 5){
+    document.getElementById('fb-passage').innerHTML = '<span style="color:var(--text2)">Cần ít nhất 5 từ để tạo bài tập. Thêm từ vào chủ đề!</span>';
+    return;
   }
-  const batch = [correct, ...distractors];
 
-  // Speak the target word
-  gameTargetWord = correct.word;
-  speakWord(correct.word);
+  // Pick 5-6 random words with examples
+  const withEx = words.filter(w=>w.example && w.example.length>10);
+  if(withEx.length < 5){
+    document.getElementById('fb-passage').innerHTML = '<span style="color:var(--text2)">Cần ít nhất 5 từ có câu ví dụ. Hãy thêm example cho từ vựng!</span>';
+    return;
+  }
 
-  // Create balloons for this batch
-  const canvas = document.getElementById('game-canvas-wrap');
-  const canvasRect = canvas.getBoundingClientRect();
+  const picked = [];
+  while(picked.length < Math.min(6, withEx.length)){
+    const r = Math.floor(Math.random()*withEx.length);
+    if(!picked.includes(withEx[r])) picked.push(withEx[r]);
+  }
 
-  batch.forEach((w,i)=>{
-    const balloon = document.createElement('div');
-    balloon.className = 'balloon';
-    const colors = ['#ff6b9d','#c77dff','#4ecdc4','#ffe66d','#ff8c42','#7eb8f7'];
-    const color = colors[Math.floor(Math.random()*colors.length)];
-    balloon.innerHTML = `
-      <div class="balloon-inner" style="background:linear-gradient(135deg, ${color} 0%, ${color}dd 100%);">
-        ${w.word}
-      </div>
-      <div class="balloon-string"></div>
-    `;
-
-    // Random starting position (spread horizontally)
-    const x = (i / batch.length) * 100 + (Math.random() * 20);
-    balloon.style.left = `${x}%`;
-    balloon.style.bottom = `-100px`;
-
-    balloon.onclick = ()=>clickBalloon(balloon, w.word);
-    canvas.appendChild(balloon);
-    gameBalloons.push({el:balloon, word:w.word, y:-100, speed:0.3 + gameLevel*0.05});
-  });
-
-  // Animate balloons upward
-  if(!gameInterval) gameInterval = setInterval(animateBalloons, 50);
-}
-
-function animateBalloons(){
-  if(!gameRunning) return;
-  gameBalloons = gameBalloons.filter(b=>{
-    b.y += b.speed;
-    b.el.style.bottom = `${b.y}px`;
-    // Check if balloon escaped (reached top)
-    if(b.y > 450){
-      b.el.remove();
-      if(b.word === gameTargetWord){
-        gameLives--;
-        document.getElementById('game-lives').textContent = gameLives;
-        showToast('💔 Bỏ lỡ từ đúng!');
-        if(gameLives <=0) endGame();
-      }
-      return false; // remove from array
-    }
-    return true;
-  });
-}
-
-function clickBalloon(el, word){
-  if(!gameRunning) return;
-  el.style.animation='none';
-  el.style.transform='scale(0)';
-  el.style.transition='transform 0.2s ease';
-  setTimeout(()=>el.remove(), 200);
-
-  // Remove from tracking
-  gameBalloons = gameBalloons.filter(b=>b.el!==el);
-
-  if(word === gameTargetWord){
-    gameScore += 10 * gameLevel;
-    document.getElementById('game-score').textContent = gameScore;
-    showToast('✅ +' + (10*gameLevel));
-    // Level up every 50 points
-    if(gameScore % 50 === 0 && gameScore > 0){
-      gameLevel++;
-      document.getElementById('game-level').textContent = gameLevel;
-      showToast('🎉 Level ' + gameLevel + '!');
-      clearInterval(gameInterval);
-      gameInterval = setInterval(spawnBalloon, Math.max(2000 - (gameLevel-1)*200, 800));
-    }
+  // Try to use AI to generate passage if API key available
+  if(CFG.claudeKey){
+    await generateWithAI(picked);
   } else {
-    gameLives--;
-    document.getElementById('game-lives').textContent = gameLives;
-    showToast('❌ Sai từ!');
-    if(gameLives <= 0) endGame();
+    generateFallbackPassage(picked);
   }
 }
 
-function endGame(){
-  gameRunning = false;
-  clearInterval(gameInterval);
-  gameInterval = null;
-  document.getElementById('final-score').textContent = gameScore;
-  document.getElementById('game-over').style.display='block';
-  // Clear remaining balloons
-  gameBalloons.forEach(b=>b.el.remove());
-  gameBalloons = [];
+async function generateWithAI(words){
+  document.getElementById('fb-passage').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text2)"><span class="spinner"></span> Đang tạo đoạn văn...</div>';
+  
+  const wordList = words.map(w=>`${w.word} (${w.definition||w.vietnamese})`).join(', ');
+  const system = `You are an IELTS writing tutor. Create a SHORT coherent passage (60-80 words) using the given vocabulary words naturally. Return ONLY a JSON object with this format:
+{"passage": "The complete passage text using all the words"}`;
+  
+  const prompt = `Create a short passage (60-80 words) naturally incorporating these IELTS words: ${wordList}
+Make it about a relatable topic like: daily life, environment, technology, education, or travel.
+Return ONLY valid JSON.`;
+
+  try {
+    const response = await claudeCall(system, prompt, 800);
+    const clean = response.replace(/```json|```/g,'').trim();
+    const data = JSON.parse(clean);
+    buildPassageUI(data.passage, words);
+  } catch(e){
+    console.error('AI gen failed:', e);
+    generateFallbackPassage(words);
+  }
+}
+
+function generateFallbackPassage(words){
+  // Fallback: stitch examples together
+  const sentences = words.map(w=>w.example).filter(Boolean);
+  const passage = sentences.slice(0,4).join(' ');
+  buildPassageUI(passage, words);
+}
+
+function buildPassageUI(passage, words){
+  fbAnswers = {};
+  fbUserAnswers = {};
+  
+  let html = passage;
+  words.forEach((w,i)=>{
+    const blankId = `blank${i}`;
+    fbAnswers[blankId] = w.word;
+    const regex = new RegExp(`\\b${w.word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\w*\\b`, 'gi');
+    html = html.replace(regex, `<span class="fb-blank" id="${blankId}" onclick="selectBlank('${blankId}')">_____</span>`);
+  });
+  
+  document.getElementById('fb-passage').innerHTML = html;
+  
+  // Word bank (shuffled)
+  const shuffled = [...words].sort(()=>Math.random()-.5);
+  document.getElementById('fb-wordbank').innerHTML = shuffled.map((w,i)=>
+    `<span class="fb-word" id="word${i}" onclick="fillWord('word${i}','${w.word.replace(/'/g,"\\'")}')">${w.word}</span>`
+  ).join('');
+  
+  document.getElementById('fb-feedback').style.display='none';
+}
+
+let selectedBlankId = null;
+
+function selectBlank(blankId){
+  document.querySelectorAll('.fb-blank').forEach(b=>b.style.background='');
+  document.getElementById(blankId).style.background='var(--surface2)';
+  selectedBlankId = blankId;
+}
+
+function fillWord(wordId, word){
+  if(!selectedBlankId){
+    showToast('⚠️ Chọn chỗ trống trước!');
+    return;
+  }
+  
+  const blank = document.getElementById(selectedBlankId);
+  blank.textContent = word;
+  blank.classList.add('filled');
+  fbUserAnswers[selectedBlankId] = word;
+  
+  document.getElementById(wordId).classList.add('used');
+  blank.style.background='';
+  selectedBlankId = null;
+}
+
+function resetFillBlank(){
+  fbUserAnswers = {};
+  document.querySelectorAll('.fb-blank').forEach(b=>{
+    b.textContent='_____';
+    b.classList.remove('filled');
+    b.style.background='';
+  });
+  document.querySelectorAll('.fb-word').forEach(w=>w.classList.remove('used'));
+  document.getElementById('fb-feedback').style.display='none';
+  selectedBlankId = null;
+}
+
+function checkFillBlank(){
+  const total = Object.keys(fbAnswers).length;
+  const filled = Object.keys(fbUserAnswers).length;
+  
+  if(filled < total){
+    showToast('⚠️ Điền hết chỗ trống trước khi kiểm tra!');
+    return;
+  }
+  
+  let correct = 0;
+  Object.keys(fbAnswers).forEach(blankId=>{
+    const blank = document.getElementById(blankId);
+    const correctWord = fbAnswers[blankId].toLowerCase();
+    const userWord = (fbUserAnswers[blankId]||'').toLowerCase();
+    
+    if(userWord === correctWord){
+      correct++;
+      blank.style.borderColor='var(--success)';
+      blank.style.color='var(--success)';
+    } else {
+      blank.style.borderColor='var(--danger)';
+      blank.style.color='var(--danger)';
+    }
+  });
+  
+  const fb = document.getElementById('fb-feedback');
+  fb.style.display='block';
+  if(correct === total){
+    fb.style.background='#102a10';
+    fb.style.border='1px solid var(--success)';
+    fb.style.color='var(--success)';
+    fb.innerHTML=`✅ <strong>Hoàn hảo!</strong> Bạn đã điền đúng ${correct}/${total} từ!`;
+    qC += total; qT += total;
+  } else {
+    fb.style.background='#2a2010';
+    fb.style.border='1px solid var(--accent)';
+    fb.style.color='var(--accent)';
+    fb.innerHTML=`📊 Bạn đã điền đúng <strong>${correct}/${total}</strong> từ. Thử lại nhé!`;
+    qC += correct; qT += total;
+  }
+  updateQStats();
 }
 
 function checkQ(btn,selId,corrId){
