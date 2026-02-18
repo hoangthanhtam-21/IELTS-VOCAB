@@ -221,6 +221,13 @@ svg.donut{transform:rotate(-90deg);}
 .chat-msg.ai{background:var(--surface2);color:var(--text);align-self:flex-start;border-bottom-left-radius:4px;border:1px solid var(--border);}
 .chat-msg.loading{opacity:.6;font-style:italic;}
 
+/* ── BALLOON GAME ── */
+.balloon{position:absolute;cursor:pointer;transition:transform .15s;user-select:none;}
+.balloon:hover{transform:scale(1.05);}
+.balloon-inner{position:relative;width:70px;height:85px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5);box-shadow:inset -5px -5px 15px rgba(0,0,0,.2),inset 5px 5px 15px rgba(255,255,255,.3);animation:float 3s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+.balloon-string{position:absolute;top:100%;left:50%;width:1px;height:30px;background:rgba(255,255,255,.4);transform-origin:top;}
+
 @media(max-width:600px){
   .c-word{font-size:28px;}.quiz-opts{grid-template-columns:1fr;}
   .prog-grid{grid-template-columns:1fr 1fr;}.form-2,.form-3{grid-template-columns:1fr;}
@@ -393,7 +400,7 @@ svg.donut{transform:rotate(-90deg);}
       <div class="qtype-tabs">
         <button class="qtype-btn active" id="qt-meaning" onclick="setQType('meaning')">📖 Chọn nghĩa</button>
         <button class="qtype-btn" id="qt-word"      onclick="setQType('word')">✏️ Chọn từ</button>
-        <button class="qtype-btn" id="qt-translate" onclick="setQType('translate')">🇻🇳 Dịch câu</button>
+        <button class="qtype-btn" id="qt-balloon"   onclick="setQType('balloon')">🎈 Bắn bóng</button>
         <button class="qtype-btn" id="qt-random"    onclick="setQType('random')">🎲 Ngẫu nhiên</button>
       </div>
       <div class="quiz-q-card">
@@ -404,13 +411,22 @@ svg.donut{transform:rotate(-90deg);}
         <button class="speak-btn" id="q-speak-btn" onclick="speakWord(document.getElementById('q-word').textContent)" style="margin-top:8px"><span class="wave"><span></span><span></span><span></span></span> Phát âm</button>
       </div>
       <div class="quiz-opts" id="quiz-opts"></div>
-      <!-- Translate mode: type answer -->
-      <div id="translate-area" style="display:none;margin-bottom:16px">
-        <div style="display:flex;gap:10px">
-          <input id="translate-input" placeholder="Nhập bản dịch tiếng Anh..." onkeydown="if(event.key==='Enter')checkTranslate()" style="flex:1;font-size:15px">
-          <button class="btn btn-p" onclick="checkTranslate()">Kiểm tra</button>
+      <!-- Balloon game -->
+      <div id="balloon-game" style="display:none">
+        <div style="text-align:center;margin-bottom:12px">
+          <div style="display:inline-flex;gap:16px;align-items:center;background:var(--surface2);padding:10px 20px;border-radius:12px">
+            <div style="font-size:13px;color:var(--text2)">Level: <strong style="color:var(--accent);font-size:18px" id="game-level">1</strong></div>
+            <div style="font-size:13px;color:var(--text2)">Điểm: <strong style="color:var(--success);font-size:18px" id="game-score">0</strong></div>
+            <div style="font-size:13px;color:var(--text2)">❤️ <strong style="color:var(--danger);font-size:18px" id="game-lives">3</strong></div>
+          </div>
         </div>
-        <div id="translate-feedback" style="display:none;margin-top:12px;padding:14px;border-radius:12px;font-size:14px;line-height:1.6"></div>
+        <div id="game-canvas-wrap" style="position:relative;width:100%;height:420px;background:linear-gradient(180deg,#0a0a12 0%,#16161e 100%);border-radius:16px;overflow:hidden;border:2px solid var(--border)"></div>
+        <div id="game-over" style="display:none;text-align:center;margin-top:16px;padding:20px;background:var(--surface2);border-radius:12px;border:1px solid var(--border)">
+          <div style="font-size:42px;margin-bottom:8px">💥</div>
+          <div style="font-size:18px;font-weight:700;margin-bottom:6px;color:var(--danger)">Game Over!</div>
+          <div style="font-size:14px;color:var(--text2);margin-bottom:14px">Tổng điểm: <strong style="color:var(--accent);font-size:20px" id="final-score">0</strong></div>
+          <button class="btn btn-p" onclick="startBalloonGame()">🔄 Chơi lại</button>
+        </div>
       </div>
       <button class="quiz-next-btn" id="quiz-next" onclick="nextQ()">Câu tiếp theo →</button>
     </div>
@@ -1037,49 +1053,39 @@ function initQuiz(){
   if(!empty) nextQ();
 }
 
-// Words that have a Vietnamese translation (needed for translate mode)
-function wordsWithVN(){
-  const pool = activeTopicId ? topicWords(activeTopicId) : allWords();
-  return pool.filter(w => w.vietnamese && w.example);
-}
-
 function nextQ(){
   const words = activeTopicId ? topicWords(activeTopicId) : allWords();
   if(words.length<4) return;
 
-  // Resolve actual type (random picks from all 3)
-  let type = qType;
-  if(type==='random'){
-    const hasVN = wordsWithVN().length >= 2;
-    const choices = hasVN ? ['meaning','word','translate'] : ['meaning','word'];
-    type = choices[Math.floor(Math.random()*choices.length)];
+  let type = qType==='random' ? (Math.random()<0.5?'meaning':'word') : qType;
+
+  // Balloon mode starts the game instead of showing a question
+  if(type==='balloon'){
+    document.getElementById('q-lbl').style.display='none';
+    document.getElementById('q-word').style.display='none';
+    document.getElementById('q-ph').style.display='none';
+    document.getElementById('q-sent').style.display='none';
+    document.getElementById('q-speak-btn').style.display='none';
+    document.getElementById('quiz-opts').style.display='none';
+    document.getElementById('balloon-game').style.display='block';
+    document.getElementById('quiz-next').style.display='none';
+    startBalloonGame();
+    return;
   }
 
-  // translate mode needs words with example+vietnamese
-  const pool = type==='translate' ? wordsWithVN() : words;
-  if(pool.length < (type==='translate' ? 1 : 4)){
-    // fallback to meaning if not enough translate words
-    type = 'meaning';
-  }
+  // Hide balloon game for normal quiz modes
+  document.getElementById('balloon-game').style.display='none';
+  document.getElementById('q-lbl').style.display='block';
+  document.getElementById('quiz-opts').style.display='grid';
+  document.getElementById('quiz-next').classList.remove('show');
 
-  const idx = Math.floor(Math.random()*pool.length);
-  const correct = pool[idx];
+  const idx = Math.floor(Math.random()*words.length);
+  const correct = words[idx];
   let distPool=[...words].filter(w=>w.word!==correct.word);
   const dist=[];
   while(dist.length<3&&distPool.length){ const r=Math.floor(Math.random()*distPool.length); dist.push(distPool.splice(r,1)[0]); }
   const opts=[correct,...dist].sort(()=>Math.random()-.5);
-
-  document.getElementById('quiz-next').classList.remove('show');
-  document.getElementById('quiz-opts').style.display = 'grid';
-  document.getElementById('translate-area').style.display = 'none';
-  document.getElementById('translate-feedback').style.display = 'none';
-  // Reset translate input
-  const ti = document.getElementById('translate-input');
-  ti.value=''; ti.disabled=false;
-  const tb = document.querySelector('#translate-area .btn-p');
-  if(tb) tb.disabled=false;
   currentWord = correct.word;
-  currentCorrect = correct;
 
   if(type==='meaning'){
     document.getElementById('q-lbl').textContent='📖 Chọn nghĩa đúng của từ';
@@ -1094,7 +1100,7 @@ function nextQ(){
          onclick="checkQ(this,'${o.topicId}||${o.word}','${correct.topicId}||${correct.word}')">
          ${o.definition||o.vietnamese||'—'}</button>`).join('');
 
-  } else if(type==='word'){
+  } else { // word
     document.getElementById('q-lbl').textContent='✏️ Chọn từ đúng điền vào câu';
     document.getElementById('q-word').style.display='none';
     document.getElementById('q-ph').textContent='';
@@ -1110,76 +1116,139 @@ function nextQ(){
          onclick="checkQ(this,'${o.topicId}||${o.word}','${correct.topicId}||${correct.word}')"
          style="text-align:center;font-family:'Playfair Display',serif;font-size:16px;font-weight:700">
          ${o.word}</button>`).join('');
-
-  } else { // translate
-    document.getElementById('q-lbl').textContent='🇻🇳 Dịch sang tiếng Anh — điền từ còn thiếu';
-    document.getElementById('q-word').style.display='none';
-    document.getElementById('q-ph').textContent='';
-    document.getElementById('q-speak-btn').style.display='none';
-
-    // Show English sentence with the target word blanked out
-    // + Vietnamese meaning as hint
-    const example = correct.example || '';
-    const masked = example
-      ? example.replace(
-          new RegExp('\\b'+correct.word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\w*\\b','gi'),
-          '<span style="display:inline-block;min-width:80px;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:700;text-align:center">?????</span>'
-        )
-      : '';
-
-    const hint = correct.vietnamese
-      ? `<div style="font-size:13px;color:var(--text2);margin-top:10px">💡 Gợi ý: <em style="color:var(--accent3)">${correct.vietnamese}</em></div>`
-      : '';
-
-    document.getElementById('q-sent').innerHTML =
-      `<div style="font-size:15px;line-height:1.8;color:var(--text)">${masked||`<span style='color:var(--text2)'>Dịch: <em>${correct.vietnamese||correct.definition}</em></span>`}</div>${hint}`;
-    document.getElementById('q-sent').style.display='block';
-    document.getElementById('quiz-opts').style.display='none';
-    document.getElementById('translate-area').style.display='block';
-    document.getElementById('translate-input').value='';
-    document.getElementById('translate-input').placeholder=`Nhập từ: ${correct.phonetic||correct.word}`;
-    setTimeout(()=>document.getElementById('translate-input').focus(), 100);
   }
 }
 
-let currentCorrect = null;
+// ════════════════════════════════════
+//  BALLOON GAME
+// ════════════════════════════════════
+let gameLevel=1, gameScore=0, gameLives=3, gameBalloons=[], gameInterval=null, gameTargetWord=null, gameRunning=false;
 
-function checkTranslate(){
-  const input = document.getElementById('translate-input');
-  const answer = input.value.trim().toLowerCase();
-  if(!answer) return;
+function startBalloonGame(){
+  // Reset game
+  gameLevel=1; gameScore=0; gameLives=3; gameBalloons=[]; gameRunning=true;
+  document.getElementById('game-level').textContent=gameLevel;
+  document.getElementById('game-score').textContent=gameScore;
+  document.getElementById('game-lives').textContent=gameLives;
+  document.getElementById('game-over').style.display='none';
+  const canvas = document.getElementById('game-canvas-wrap');
+  canvas.innerHTML=''; // clear old balloons
 
-  input.disabled = true;
-  document.querySelector('#translate-area .btn-p').disabled = true;
+  // Start spawning balloons
+  spawnBalloon();
+  gameInterval = setInterval(spawnBalloon, Math.max(2000 - (gameLevel-1)*200, 800));
+}
 
-  const w = currentCorrect;
-  const correctWord = w.word.toLowerCase();
+function spawnBalloon(){
+  if(!gameRunning || gameLives<=0) return;
 
-  // Check if correct word appears in the answer
-  const regex = new RegExp('\\b' + correctWord.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\b','i');
-  const isCorrect = regex.test(answer);
+  const words = activeTopicId ? topicWords(activeTopicId) : allWords();
+  if(words.length<3){ endGame(); return; }
 
-  const fb = document.getElementById('translate-feedback');
-  fb.style.display='block';
-
-  if(isCorrect){
-    qC++; qT++;
-    fb.style.background='#102a10'; fb.style.border='1px solid var(--success)'; fb.style.color='var(--success)';
-    fb.innerHTML=`✅ <strong>Chính xác!</strong><br>
-      <span style="color:var(--text2)">Gợi ý câu hoàn chỉnh:</span><br>
-      <em style="color:var(--text)">"${w.example}"</em>`;
-    showToast('✅ Chính xác!');
-    setTimeout(()=>speakWord(w.word), 400);
-  } else {
-    qW++; qT++;
-    fb.style.background='#2a1010'; fb.style.border='1px solid var(--danger)'; fb.style.color='var(--danger)';
-    fb.innerHTML=`❌ <strong>Chưa đúng!</strong> Từ cần dùng là: <strong style="color:var(--accent);font-family:'Playfair Display',serif;font-size:16px">${w.word}</strong><br>
-      <span style="color:var(--text2);font-size:13px">Câu hoàn chỉnh:</span><br>
-      <em style="color:var(--text);font-size:13px">"${w.example}"</em>`;
-    showToast('❌ Chưa đúng!');
+  // Pick random target word and 2 distractors
+  const idx = Math.floor(Math.random()*words.length);
+  const correct = words[idx];
+  let pool = [...words].filter(w=>w.word!==correct.word);
+  const distractors = [];
+  while(distractors.length<2 && pool.length){
+    const r = Math.floor(Math.random()*pool.length);
+    distractors.push(pool.splice(r,1)[0]);
   }
-  updateQStats();
-  document.getElementById('quiz-next').classList.add('show');
+  const batch = [correct, ...distractors];
+
+  // Speak the target word
+  gameTargetWord = correct.word;
+  speakWord(correct.word);
+
+  // Create balloons for this batch
+  const canvas = document.getElementById('game-canvas-wrap');
+  const canvasRect = canvas.getBoundingClientRect();
+
+  batch.forEach((w,i)=>{
+    const balloon = document.createElement('div');
+    balloon.className = 'balloon';
+    const colors = ['#ff6b9d','#c77dff','#4ecdc4','#ffe66d','#ff8c42','#7eb8f7'];
+    const color = colors[Math.floor(Math.random()*colors.length)];
+    balloon.innerHTML = `
+      <div class="balloon-inner" style="background:linear-gradient(135deg, ${color} 0%, ${color}dd 100%);">
+        ${w.word}
+      </div>
+      <div class="balloon-string"></div>
+    `;
+
+    // Random starting position (spread horizontally)
+    const x = (i / batch.length) * 100 + (Math.random() * 20);
+    balloon.style.left = `${x}%`;
+    balloon.style.bottom = `-100px`;
+
+    balloon.onclick = ()=>clickBalloon(balloon, w.word);
+    canvas.appendChild(balloon);
+    gameBalloons.push({el:balloon, word:w.word, y:-100, speed:0.3 + gameLevel*0.05});
+  });
+
+  // Animate balloons upward
+  if(!gameInterval) gameInterval = setInterval(animateBalloons, 50);
+}
+
+function animateBalloons(){
+  if(!gameRunning) return;
+  gameBalloons = gameBalloons.filter(b=>{
+    b.y += b.speed;
+    b.el.style.bottom = `${b.y}px`;
+    // Check if balloon escaped (reached top)
+    if(b.y > 450){
+      b.el.remove();
+      if(b.word === gameTargetWord){
+        gameLives--;
+        document.getElementById('game-lives').textContent = gameLives;
+        showToast('💔 Bỏ lỡ từ đúng!');
+        if(gameLives <=0) endGame();
+      }
+      return false; // remove from array
+    }
+    return true;
+  });
+}
+
+function clickBalloon(el, word){
+  if(!gameRunning) return;
+  el.style.animation='none';
+  el.style.transform='scale(0)';
+  el.style.transition='transform 0.2s ease';
+  setTimeout(()=>el.remove(), 200);
+
+  // Remove from tracking
+  gameBalloons = gameBalloons.filter(b=>b.el!==el);
+
+  if(word === gameTargetWord){
+    gameScore += 10 * gameLevel;
+    document.getElementById('game-score').textContent = gameScore;
+    showToast('✅ +' + (10*gameLevel));
+    // Level up every 50 points
+    if(gameScore % 50 === 0 && gameScore > 0){
+      gameLevel++;
+      document.getElementById('game-level').textContent = gameLevel;
+      showToast('🎉 Level ' + gameLevel + '!');
+      clearInterval(gameInterval);
+      gameInterval = setInterval(spawnBalloon, Math.max(2000 - (gameLevel-1)*200, 800));
+    }
+  } else {
+    gameLives--;
+    document.getElementById('game-lives').textContent = gameLives;
+    showToast('❌ Sai từ!');
+    if(gameLives <= 0) endGame();
+  }
+}
+
+function endGame(){
+  gameRunning = false;
+  clearInterval(gameInterval);
+  gameInterval = null;
+  document.getElementById('final-score').textContent = gameScore;
+  document.getElementById('game-over').style.display='block';
+  // Clear remaining balloons
+  gameBalloons.forEach(b=>b.el.remove());
+  gameBalloons = [];
 }
 
 function checkQ(btn,selId,corrId){
