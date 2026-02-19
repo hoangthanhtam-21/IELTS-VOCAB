@@ -65,7 +65,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding-bot
 .topic-card{background:var(--surface);border-radius:var(--radius);padding:20px;border:1px solid var(--border);cursor:pointer;transition:all .2s;}
 .topic-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.35);}
 .t-emoji{font-size:28px;margin-bottom:10px;}
-.t-name{font-family:'DM Sans',sans-serif;font-size:17px;font-weight:700;margin-bottom:4px;}
+.t-name{font-family:'DM Sans',sans-serif;font-size:17px;font-weight:700;margin-bottom:4px;text-transform:none!important;}
 .t-meta{font-size:12px;color:var(--text2);}
 .t-bar{height:3px;background:var(--border);border-radius:2px;margin-top:10px;overflow:hidden;}
 .t-bar-fill{height:100%;border-radius:2px;transition:width .4s;}
@@ -79,7 +79,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding-bot
 .chip{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 13px;cursor:pointer;transition:all .15s;}
 .chip:hover{border-color:var(--accent2);}
 .chip.done{border-color:var(--success);opacity:.6;}
-.chip-word{font-weight:600;font-size:14px;display:flex;align-items:center;gap:6px;}
+.chip-word{font-weight:600;font-size:14px;display:flex;align-items:center;gap:6px;text-transform:none!important;}
 .chip-vn{font-size:12px;color:var(--text2);margin-top:2px;}
 .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
 .s-new{background:#7eb8f7;}.s-learning{background:var(--accent2);}.s-review{background:var(--accent);}.s-mastered{background:var(--success);}
@@ -101,7 +101,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding-bot
 .cf{background:linear-gradient(135deg,#1a1a22,#16161e);}
 .cb{background:linear-gradient(135deg,#1a1e2a,#161822);transform:rotateY(180deg);}
 .c-tag{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text2);margin-bottom:12px;}
-.c-word{font-family:'DM Sans',sans-serif;font-size:40px;font-weight:900;color:var(--accent);text-align:center;line-height:1.1;text-transform:none;}
+.c-word{font-family:'DM Sans',sans-serif;font-size:40px;font-weight:900;color:var(--accent);text-align:center;line-height:1.1;text-transform:none!important;}
 .c-ph{font-size:15px;color:var(--accent2);margin-top:7px;}
 .c-type{font-size:12px;color:var(--text2);margin-top:4px;font-style:italic;}
 .c-def{font-size:16px;color:var(--text);text-align:center;line-height:1.6;}
@@ -143,7 +143,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding-bot
 .qtype-btn.active{background:var(--accent2);border-color:var(--accent2);color:#fff;font-weight:600;}
 .quiz-q-card{background:var(--surface);border-radius:var(--radius);padding:26px;border:1px solid var(--border);margin-bottom:16px;text-align:center;}
 .q-type-lbl{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;}
-.q-word{font-family:'DM Sans',sans-serif;font-size:33px;font-weight:700;color:var(--accent);margin-bottom:6px;text-transform:none;}
+.q-word{font-family:'DM Sans',sans-serif;font-size:33px;font-weight:700;color:var(--accent);margin-bottom:6px;text-transform:none!important;}
 .q-ph{font-size:14px;color:var(--accent2);}
 .blank-sent{font-size:17px;color:var(--text);line-height:1.8;text-align:center;padding:0 8px;margin-top:6px;}
 .blank{display:inline-block;min-width:88px;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:700;font-family:'DM Sans',sans-serif;font-size:19px;text-align:center;padding:0 5px;}
@@ -210,7 +210,7 @@ svg.donut{transform:rotate(-90deg);}
 .spell-listen-ph{font-size:15px;color:var(--accent2);margin-top:6px;}
 .spell-listen-type{font-size:12px;color:var(--text2);font-style:italic;margin-top:4px;}
 .spell-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
-.spell-opt{padding:14px 12px;background:var(--surface);border:2px solid var(--border);border-radius:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:17px;font-weight:700;text-align:center;color:var(--text);transition:all .15s;letter-spacing:.5px;text-transform:none;}
+.spell-opt{padding:14px 12px;background:var(--surface);border:2px solid var(--border);border-radius:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:17px;font-weight:700;text-align:center;color:var(--text);transition:all .15s;letter-spacing:.5px;text-transform:none!important;}
 .spell-opt:hover:not(.disabled){border-color:var(--accent2);background:var(--surface2);}
 .spell-opt.correct{border-color:var(--success)!important;background:#102a10!important;color:var(--success)!important;}
 .spell-opt.wrong{border-color:var(--danger)!important;background:#2a1010!important;color:var(--danger)!important;animation:shake .3s ease;}
@@ -222,10 +222,10 @@ svg.donut{transform:rotate(-90deg);}
 .chat-msg.loading{opacity:.6;font-style:italic;}
 
 /* ── FILL BLANK EXERCISE ── */
-.fb-blank{display:inline-block;min-width:90px;padding:2px 8px;margin:0 3px;border-bottom:2px solid var(--accent2);color:var(--accent2);font-weight:600;cursor:pointer;transition:all .2s;vertical-align:baseline;text-transform:none;}
+.fb-blank{display:inline-block;min-width:90px;padding:2px 8px;margin:0 3px;border-bottom:2px solid var(--accent2);color:var(--accent2);font-weight:600;cursor:pointer;transition:all .2s;vertical-align:baseline;text-transform:none!important;}
 .fb-blank:hover{background:var(--surface2);}
 .fb-blank.filled{color:var(--accent);border-color:var(--accent);}
-.fb-word{display:inline-block;padding:7px 14px;background:var(--surface2);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;transition:all .15s;user-select:none;text-transform:none;}
+.fb-word{display:inline-block;padding:7px 14px;background:var(--surface2);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;transition:all .15s;user-select:none;text-transform:none!important;}
 .fb-word:hover{border-color:var(--accent2);transform:translateY(-1px);}
 .fb-word.used{opacity:.3;cursor:not-allowed;pointer-events:none;}
 
@@ -731,6 +731,13 @@ async function init(){
     ov.classList.add('hidden');
     app.style.display = 'block';
     document.getElementById('student-app').style.display = 'block';
+    // Trigger voice loading for student mode
+    if(window.speechSynthesis){
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        _voices = window.speechSynthesis.getVoices();
+      };
+    }
     renderStudent();
     return;
   }
@@ -1684,18 +1691,37 @@ function speakWord(word){
     const voice = pickVoice(currentAccent);
     if(voice) u.voice = voice;
     u.onend   = () => setSpeaking(false);
-    u.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(u);
+    u.onerror = (e) => {
+      console.warn('Speech error:', e);
+      setSpeaking(false);
+    };
+    try {
+      window.speechSynthesis.speak(u);
+    } catch(e){
+      console.error('Speak failed:', e);
+      setSpeaking(false);
+    }
   };
 
-  // If voices not loaded yet, wait for them
-  if(!getVoices().length){
+  // Force load voices if not loaded yet
+  const voices = getVoices();
+  if(!voices.length){
+    // Try to trigger voice loading
+    if(window.speechSynthesis.getVoices().length === 0){
+      // Some browsers need this to trigger loading
+      const dummy = new SpeechSynthesisUtterance('');
+      window.speechSynthesis.speak(dummy);
+      window.speechSynthesis.cancel();
+    }
+    
     window.speechSynthesis.onvoiceschanged = () => {
       _voices = window.speechSynthesis.getVoices();
-      trySpeak();
+      if(_voices.length > 0) trySpeak();
     };
-    // Also try after short delay as fallback (some browsers never fire onvoiceschanged)
-    setTimeout(trySpeak, 250);
+    // Fallback: try anyway after delay
+    setTimeout(()=>{
+      if(getVoices().length > 0) trySpeak();
+    }, 300);
   } else {
     trySpeak();
   }
