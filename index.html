@@ -784,33 +784,48 @@ async function init(){
         u1.volume = 0;
         window.speechSynthesis.speak(u1);
         
-        // Unlock strategy 2: Test word with fresh user gesture
+        // Unlock strategy 2: Test word with fresh user gesture - FORCE UK
         setTimeout(()=>{
-          log('🔓 Test speak "hello" (fresh gesture)...');
+          log('🔓 Test speak "hello" with UK voice...');
+          
+          const testVoices = window.speechSynthesis.getVoices();
+          const ukTestVoice = testVoices.find(v=>v.lang==='en-GB' || v.lang.startsWith('en-GB'));
+          
           const u2 = new SpeechSynthesisUtterance('hello');
           u2.volume = 0.8;
-          u2.rate = 1;
+          u2.rate = 0.75;  // Same rate as main speech
           u2.lang = 'en-GB';
           
-          // Try to use a voice if available
-          const testVoices = window.speechSynthesis.getVoices();
-          if(testVoices.length > 0){
-            const testVoice = testVoices.find(v=>v.lang.startsWith('en'));
-            if(testVoice){
-              u2.voice = testVoice;
-              log(`   Using voice: ${testVoice.name}`);
-            }
+          if(ukTestVoice){
+            u2.voice = ukTestVoice;
+            log(`   Using UK voice: ${ukTestVoice.name}`);
+          } else {
+            log(`   No UK voice, will use default`);
           }
           
           u2.onstart = () => log('   ✅ Test started');
-          u2.onend = () => log('   ✅ Test completed - audio working!');
+          u2.onend = () => {
+            log('   ✅ Test completed - UK audio working!');
+            // Cache voices and UK voice globally after test
+            _voices = window.speechSynthesis.getVoices();
+            const ukVoicesForCache = _voices.filter(v=>
+              v.lang === 'en-GB' || 
+              v.lang.startsWith('en-GB') ||
+              v.name.includes('UK') ||
+              v.name.includes('British')
+            );
+            if(ukVoicesForCache.length > 0){
+              _cachedUKVoice = ukVoicesForCache[0];
+              log(`   🎯 Cached UK voice: ${_cachedUKVoice.name}`);
+            }
+          };
           u2.onerror = (e) => log(`   ❌ Test error: ${e.error}`);
           
           try {
             window.speechSynthesis.speak(u2);
             log('   Test speak() called');
           } catch(e){
-            log(`   ❌ Test speak exception: ${e.message}`);
+            log(`   ❌ Test exception: ${e.message}`);
           }
         }, 300);
         
@@ -1752,6 +1767,7 @@ function setSpeaking(on){ document.querySelectorAll('.speak-btn').forEach(b=>on?
 
 // Preload voices (some browsers need this)
 let _voices = [];
+let _cachedUKVoice = null;  // Cache UK voice for performance
 function getVoices(){
   if(_voices.length) return _voices;
   _voices = window.speechSynthesis?.getVoices() || [];
@@ -1794,100 +1810,76 @@ function speakWord(word){
     return;
   }
 
-  console.log('🔊 Attempting to speak:', word);
+  console.log('🔊 Speaking:', word);
   
-  // Cancel any ongoing speech and wait for it to fully stop
+  // Cancel and wait longer to ensure clean state
   if(window.speechSynthesis.speaking){
     window.speechSynthesis.cancel();
   }
   
   setSpeaking(true);
 
-  let attemptCount = 0;
-  const maxAttempts = 3;
-  
-  const trySpeak = (useLang, useVoice) => {
-    attemptCount++;
-    console.log(`   Attempt ${attemptCount}/${maxAttempts} - lang: ${useLang || 'default'}, voice: ${useVoice?.name || 'default'}`);
+  // Wait for synthesis to be ready (100ms to prevent audio cutoff)
+  setTimeout(() => {
+    const u = new SpeechSynthesisUtterance(word);
+    u.rate  = 0.75;  // Slower for clarity
+    u.pitch = 1.0;
+    u.volume = 1.0;
     
-    // Important: Wait a bit after cancel to ensure synthesis is ready
-    setTimeout(() => {
-      const u = new SpeechSynthesisUtterance(word);
+    // Use cached UK voice if available, otherwise find it
+    if(!_cachedUKVoice){
+      const voices = window.speechSynthesis.getVoices();
+      console.log(`   Finding UK voice from ${voices.length} total...`);
       
-      // Set language
-      if(useLang) u.lang = useLang;
-      u.rate  = 0.85;  // Slightly faster than 0.72 to reduce delay, but not too fast
-      u.pitch = 1.0;
-      u.volume = 1.0;
+      // Priority: UK voices only, never US
+      const ukVoices = voices.filter(v => 
+        v.lang === 'en-GB' || 
+        v.lang === 'en-gb' ||
+        v.lang.startsWith('en-GB') ||
+        v.name.includes('UK') ||
+        v.name.includes('British') ||
+        v.name.includes('Daniel') ||
+        v.name.includes('Hazel')
+      );
       
-      // Set voice if provided
-      if(useVoice) u.voice = useVoice;
-      
-      u.onstart = () => {
-        console.log('   ✅ Speech started successfully');
-      };
-      
-      u.onend = () => {
-        console.log('   ✅ Speech completed');
-        setSpeaking(false);
-      };
-      
-      u.onerror = (e) => {
-        console.error(`   ❌ Speech error (attempt ${attemptCount}):`, e.error);
-        
-        if(attemptCount < maxAttempts && e.error === 'synthesis-failed'){
-          // Try fallback strategies
-          const voices = window.speechSynthesis.getVoices();
-          
-          if(attemptCount === 1){
-            // Attempt 2: Try US English voice
-            console.log('   Retrying with US voice...');
-            const usVoice = voices.find(v=>v.lang==='en-US' || v.lang.startsWith('en-US'));
-            trySpeak('en-US', usVoice);
-          } else if(attemptCount === 2){
-            // Attempt 3: Try with no voice specified (browser default)
-            console.log('   Retrying with default voice (no lang/voice specified)...');
-            trySpeak(null, null);
-          } else {
-            console.error('   ❌ All speech attempts failed');
-            setSpeaking(false);
-          }
-        } else {
-          console.error('   ❌ Speech failed:', e.error);
-          setSpeaking(false);
-        }
-      };
-      
-      try {
-        window.speechSynthesis.speak(u);
-        console.log('   speak() called');
-      } catch(e){
-        console.error('   ❌ speak() exception:', e);
-        setSpeaking(false);
+      if(ukVoices.length > 0){
+        _cachedUKVoice = ukVoices[0];
+        console.log(`   ✅ Cached UK voice: ${_cachedUKVoice.name}`);
       }
-    }, 50); // Small delay to ensure synthesis is ready after cancel
-  };
-  
-  // Get voices and start first attempt
-  const voices = window.speechSynthesis.getVoices();
-  console.log(`   Available voices: ${voices.length}`);
-  
-  // Attempt 1: Try UK voice
-  if(voices.length > 0){
-    const ukVoice = voices.find(v=>v.lang==='en-GB' || v.lang.startsWith('en-GB'));
-    if(ukVoice){
-      console.log('   Found UK voice:', ukVoice.name);
-      trySpeak('en-GB', ukVoice);
-    } else {
-      console.log('   No UK voice found, trying any English...');
-      const anyEnVoice = voices.find(v=>v.lang.startsWith('en'));
-      trySpeak(anyEnVoice?.lang, anyEnVoice);
     }
-  } else {
-    // No voices loaded - try with just language code
-    console.log('   No voices loaded, trying with lang code only...');
-    trySpeak('en-GB', null);
-  }
+    
+    if(_cachedUKVoice){
+      u.voice = _cachedUKVoice;
+      u.lang = 'en-GB';
+      console.log(`   Using cached UK: ${_cachedUKVoice.name}`);
+    } else {
+      // Fallback: force en-GB lang
+      u.lang = 'en-GB';
+      console.log(`   No UK voice, forcing lang: en-GB`);
+    }
+    
+    u.onstart = () => {
+      console.log('   ✅ Started');
+    };
+    
+    u.onend = () => {
+      console.log('   ✅ Completed');
+      setSpeaking(false);
+    };
+    
+    u.onerror = (e) => {
+      console.error('   ❌ Error:', e.error);
+      setSpeaking(false);
+    };
+    
+    try {
+      window.speechSynthesis.speak(u);
+      console.log('   speak() called');
+    } catch(e){
+      console.error('   ❌ Exception:', e);
+      setSpeaking(false);
+    }
+  }, 100); // Increased delay to prevent cutoff
 }
 function speakCurrent(){ speakWord(currentWord); }
 
