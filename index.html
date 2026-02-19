@@ -155,8 +155,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding-bot
 .q-opt.reveal{border-color:var(--success)!important;background:#0d2010!important;color:var(--success)!important;font-weight:600;animation:pc .4s ease;}
 @keyframes pc{0%,100%{transform:scale(1);}50%{transform:scale(1.02);}}
 .q-opt.disabled{cursor:default;opacity:.75;}
-.quiz-next-btn{width:100%;padding:13px;background:var(--accent);color:#0d0d0f;border:none;border-radius:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;display:none;}
-.quiz-next-btn.show{display:block;}
+.quiz-next-btn{display:none!important;}
 
 /* ── PROGRESS ── */
 .prog-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:13px;margin-bottom:26px;}
@@ -870,8 +869,8 @@ function openTopic(tid){
   document.getElementById('det-title').textContent = `${t.emoji||''} ${t.name}`;
   document.getElementById('det-badge').textContent = `${words.length} từ`;
   document.getElementById('chip-grid').innerHTML = words.map(w=>`
-    <div class="chip ${w.status==='mastered'?'done':''}" onclick="speakWord('${w.word.replace(/'/g,"\\'")}')">
-      <div class="chip-word"><span class="dot ${w.status==='mastered'?'s-mastered':w.status==='review'?'s-review':w.status==='learning'?'s-learning':'s-new'}"></span>${w.word}</div>
+    <div class="chip ${w.status==='mastered'?'done':''}" onclick="speakWord('${w.word.toLowerCase().replace(/'/g,"\\'")}')">
+      <div class="chip-word"><span class="dot ${w.status==='mastered'?'s-mastered':w.status==='review'?'s-review':w.status==='learning'?'s-learning':'s-new'}"></span>${w.word.toLowerCase()}</div>
       <div class="chip-vn">${w.vietnamese||w.definition||''}</div>
     </div>`).join('');
   document.getElementById('topic-list-view').style.display='none';
@@ -1000,29 +999,42 @@ function checkSpelling(btn, selected, correct){
     fb.style.display = 'block';
     fb.textContent = '✅ Chính xác! Chuyển sang học nghĩa...';
 
-    // Speak then transition — use both onend and a max-wait fallback
-    if(window.speechSynthesis) window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(correct);
-    u.lang = currentAccent==='us' ? 'en-US' : 'en-GB';
-    u.rate = 0.72;
-    const voice = pickVoice(currentAccent);
-    if(voice) u.voice = voice;
+    // Speak then transition — simplified with shorter timeout
+    const w = queue[qIdx];
+    if(!w){
+      console.error('No word in queue at', qIdx);
+      return;
+    }
 
     let transitioned = false;
     const doTransition = () => {
       if(transitioned) return;
       transitioned = true;
-      showFlashcard(queue[qIdx]);
+      showFlashcard(w);
     };
-    u.onend   = () => setTimeout(doTransition, 300);
-    u.onerror = () => setTimeout(doTransition, 300);
-    window.speechSynthesis.speak(u);
-    // Hard fallback: always transition after 2.5s even if speech fails silently
-    setTimeout(doTransition, 2500);
+
+    // Try to speak, but always transition after 1.5s max
+    try {
+      if(window.speechSynthesis){
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(correct.toLowerCase());
+        u.lang = currentAccent==='us' ? 'en-US' : 'en-GB';
+        u.rate = 0.72;
+        const voice = pickVoice(currentAccent);
+        if(voice) u.voice = voice;
+        u.onend = () => setTimeout(doTransition, 200);
+        u.onerror = () => setTimeout(doTransition, 200);
+        window.speechSynthesis.speak(u);
+      }
+    } catch(e){
+      console.warn('Speech failed:', e);
+    }
+    // Hard fallback: always transition after 1.5s
+    setTimeout(doTransition, 1500);
 
   } else {
     btn.classList.add('wrong');
-    speakWord(correct);
+    speakWord(correct.toLowerCase());
     setTimeout(()=>{
       document.querySelectorAll('.spell-opt').forEach(b=>{
         if(!b.classList.contains('correct')) b.classList.remove('disabled');
@@ -1037,7 +1049,7 @@ function showFlashcard(w){
   document.getElementById('spelling-screen').style.display = 'none';
   document.getElementById('card-wrap-main').style.display  = 'block';
 
-  document.getElementById('cf-word').textContent = w.word;
+  document.getElementById('cf-word').textContent = w.word.toLowerCase();
   document.getElementById('cf-ph').textContent   = w.phonetic||'';
   document.getElementById('cf-type').textContent = w.type?`(${w.type})`:'';
   document.getElementById('cb-def').textContent  = w.definition||'—';
@@ -1146,7 +1158,7 @@ function nextQ(){
   if(type==='meaning'){
     document.getElementById('q-lbl').textContent='📖 Chọn nghĩa đúng của từ';
     document.getElementById('q-word').style.display='block';
-    document.getElementById('q-word').textContent=correct.word;
+    document.getElementById('q-word').textContent=correct.word.toLowerCase();
     document.getElementById('q-ph').textContent=correct.phonetic||'';
     document.getElementById('q-sent').style.display='none';
     document.getElementById('q-speak-btn').style.display='inline-flex';
@@ -1262,7 +1274,7 @@ function buildPassageUI(passage, words){
   // Word bank: only words that were actually blanked
   const shuffled = [...usedWords].sort(()=>Math.random()-.5);
   document.getElementById('fb-wordbank').innerHTML = shuffled.map((w,i)=>
-    `<span class="fb-word" id="word${i}" onclick="fillWord('word${i}','${w.word.replace(/'/g,"\\'")}')">${w.word}</span>`
+    `<span class="fb-word" id="word${i}" onclick="fillWord('word${i}','${w.word.toLowerCase().replace(/'/g,"\\'")}')">${w.word.toLowerCase()}</span>`
   ).join('');
   
   document.getElementById('fb-feedback').style.display='none';
@@ -1359,7 +1371,8 @@ function checkQ(btn,selId,corrId){
     showToast('❌ Sai rồi!');
   }
   updateQStats();
-  document.getElementById('quiz-next').classList.add('show');
+  // Auto next after 1.5s instead of showing button
+  setTimeout(()=>nextQ(), 1500);
 }
 
 function updateQStats(){
@@ -1535,7 +1548,7 @@ function loadWords(){
   document.getElementById('word-count-lbl').textContent=`${words.length} từ`;
   document.getElementById('word-tbody').innerHTML=words.map((w,i)=>`
     <tr>
-      <td><strong>${w.word}</strong></td>
+      <td><strong>${w.word.toLowerCase()}</strong></td>
       <td style="color:var(--accent2)">${w.phonetic||'—'}</td>
       <td>${w.vietnamese||'—'}</td>
       <td style="color:var(--text2);font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${w.definition||'—'}</td>
@@ -1593,7 +1606,7 @@ function readCSVFile(file){
     document.getElementById('csv-lbl').textContent=`✅ ${pendingCSV.length} từ: ${file.name}`;
     document.getElementById('csv-cnt').textContent=`Xem trước (${Math.min(pendingCSV.length,10)} / ${pendingCSV.length} từ)`;
     document.getElementById('csv-prev-body').innerHTML=pendingCSV.slice(0,10).map(w=>`
-      <tr><td><strong>${w.word}</strong></td><td style="color:var(--accent2)">${w.phonetic||''}</td>
+      <tr><td><strong>${w.word.toLowerCase()}</strong></td><td style="color:var(--accent2)">${w.phonetic||''}</td>
       <td>${w.vietnamese||''}</td><td style="color:var(--text2);font-size:12px">${w.definition||''}</td></tr>`).join('');
     document.getElementById('csv-preview').style.display='block';
   };
