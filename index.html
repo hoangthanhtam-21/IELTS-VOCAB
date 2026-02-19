@@ -90,9 +90,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding-bot
 .prg-wrap{flex:1;height:6px;background:var(--surface2);border-radius:3px;margin:0 14px;overflow:hidden;}
 .prg-fill{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:3px;transition:width .4s;}
 .study-cnt{font-size:13px;color:var(--text2);white-space:nowrap;}
-.acc-row{display:flex;gap:6px;align-items:center;justify-content:center;margin-bottom:12px;}
-.acc-btn{padding:5px 13px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;transition:all .15s;}
-.acc-btn.active{background:var(--accent2);border-color:var(--accent2);color:#fff;}
+.acc-row{display:none!important;}
 .acc-lbl{font-size:11px;color:var(--text2);letter-spacing:1px;}
 .card-wrap{perspective:1000px;margin:0 auto 22px;max-width:530px;}
 .flashcard{position:relative;width:100%;padding-top:54%;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.4,0,.2,1);cursor:pointer;}
@@ -933,8 +931,8 @@ function showSpellingStep(w){
   // Generate 3 distractors
   const opts = generateSpellingOpts(w.word);
   document.getElementById('spell-opts').innerHTML = opts.map(o =>
-    `<button class="spell-opt" onclick="checkSpelling(this,'${o.replace(/'/g,"\\'")}','${w.word.replace(/'/g,"\\'")}')">
-      ${o}
+    `<button class="spell-opt" onclick="checkSpelling(this,'${o.toLowerCase().replace(/'/g,"\\'")}','${w.word.toLowerCase().replace(/'/g,"\\'")}')">
+      ${o.toLowerCase()}
     </button>`
   ).join('');
 
@@ -1644,7 +1642,7 @@ async function syncCloud(){
 // ════════════════════════════════════
 //  AUDIO
 // ════════════════════════════════════
-let currentAccent='us', currentWord='', speakTimer=null;
+let currentAccent='uk', currentWord='', speakTimer=null;
 function setAccent(a){
   currentAccent=a;
   document.querySelectorAll('.acc-btn').forEach(b=>b.classList.remove('active'));
