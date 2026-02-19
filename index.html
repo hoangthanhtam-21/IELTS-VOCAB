@@ -1121,24 +1121,11 @@ function checkSpelling(btn, selected, correct){
       showFlashcard(w);
     };
 
-    // Try to speak, but always transition after 1.5s max
-    try {
-      if(window.speechSynthesis){
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(correct.toLowerCase());
-        u.lang = currentAccent==='us' ? 'en-US' : 'en-GB';
-        u.rate = 0.72;
-        const voice = pickVoice(currentAccent);
-        if(voice) u.voice = voice;
-        u.onend = () => setTimeout(doTransition, 200);
-        u.onerror = () => setTimeout(doTransition, 200);
-        window.speechSynthesis.speak(u);
-      }
-    } catch(e){
-      console.warn('Speech failed:', e);
-    }
-    // Hard fallback: always transition after 1.5s
-    setTimeout(doTransition, 1500);
+    // Speak the word (with proper delay handling)
+    speakWord(correct.toLowerCase());
+    
+    // Transition to flashcard after delay
+    setTimeout(doTransition, 1800);
 
   } else {
     btn.classList.add('wrong');
@@ -1808,7 +1795,12 @@ function speakWord(word){
   }
 
   console.log('🔊 Attempting to speak:', word);
-  window.speechSynthesis.cancel();
+  
+  // Cancel any ongoing speech and wait for it to fully stop
+  if(window.speechSynthesis.speaking){
+    window.speechSynthesis.cancel();
+  }
+  
   setSpeaking(true);
 
   let attemptCount = 0;
@@ -1818,59 +1810,62 @@ function speakWord(word){
     attemptCount++;
     console.log(`   Attempt ${attemptCount}/${maxAttempts} - lang: ${useLang || 'default'}, voice: ${useVoice?.name || 'default'}`);
     
-    const u = new SpeechSynthesisUtterance(word);
-    
-    // Set language
-    if(useLang) u.lang = useLang;
-    u.rate  = 0.72;
-    u.pitch = 1.0;
-    u.volume = 1.0;
-    
-    // Set voice if provided
-    if(useVoice) u.voice = useVoice;
-    
-    u.onstart = () => {
-      console.log('   ✅ Speech started successfully');
-    };
-    
-    u.onend = () => {
-      console.log('   ✅ Speech completed');
-      setSpeaking(false);
-    };
-    
-    u.onerror = (e) => {
-      console.error(`   ❌ Speech error (attempt ${attemptCount}):`, e.error);
+    // Important: Wait a bit after cancel to ensure synthesis is ready
+    setTimeout(() => {
+      const u = new SpeechSynthesisUtterance(word);
       
-      if(attemptCount < maxAttempts && e.error === 'synthesis-failed'){
-        // Try fallback strategies
-        const voices = window.speechSynthesis.getVoices();
+      // Set language
+      if(useLang) u.lang = useLang;
+      u.rate  = 0.85;  // Slightly faster than 0.72 to reduce delay, but not too fast
+      u.pitch = 1.0;
+      u.volume = 1.0;
+      
+      // Set voice if provided
+      if(useVoice) u.voice = useVoice;
+      
+      u.onstart = () => {
+        console.log('   ✅ Speech started successfully');
+      };
+      
+      u.onend = () => {
+        console.log('   ✅ Speech completed');
+        setSpeaking(false);
+      };
+      
+      u.onerror = (e) => {
+        console.error(`   ❌ Speech error (attempt ${attemptCount}):`, e.error);
         
-        if(attemptCount === 1){
-          // Attempt 2: Try US English voice
-          console.log('   Retrying with US voice...');
-          const usVoice = voices.find(v=>v.lang==='en-US' || v.lang.startsWith('en-US'));
-          setTimeout(()=>trySpeak('en-US', usVoice), 100);
-        } else if(attemptCount === 2){
-          // Attempt 3: Try with no voice specified (browser default)
-          console.log('   Retrying with default voice (no lang/voice specified)...');
-          setTimeout(()=>trySpeak(null, null), 100);
+        if(attemptCount < maxAttempts && e.error === 'synthesis-failed'){
+          // Try fallback strategies
+          const voices = window.speechSynthesis.getVoices();
+          
+          if(attemptCount === 1){
+            // Attempt 2: Try US English voice
+            console.log('   Retrying with US voice...');
+            const usVoice = voices.find(v=>v.lang==='en-US' || v.lang.startsWith('en-US'));
+            trySpeak('en-US', usVoice);
+          } else if(attemptCount === 2){
+            // Attempt 3: Try with no voice specified (browser default)
+            console.log('   Retrying with default voice (no lang/voice specified)...');
+            trySpeak(null, null);
+          } else {
+            console.error('   ❌ All speech attempts failed');
+            setSpeaking(false);
+          }
         } else {
-          console.error('   ❌ All speech attempts failed');
+          console.error('   ❌ Speech failed:', e.error);
           setSpeaking(false);
         }
-      } else {
-        console.error('   ❌ Speech failed:', e.error);
+      };
+      
+      try {
+        window.speechSynthesis.speak(u);
+        console.log('   speak() called');
+      } catch(e){
+        console.error('   ❌ speak() exception:', e);
         setSpeaking(false);
       }
-    };
-    
-    try {
-      window.speechSynthesis.speak(u);
-      console.log('   speak() called');
-    } catch(e){
-      console.error('   ❌ speak() exception:', e);
-      setSpeaking(false);
-    }
+    }, 50); // Small delay to ensure synthesis is ready after cancel
   };
   
   // Get voices and start first attempt
