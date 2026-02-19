@@ -249,6 +249,7 @@ svg.donut{transform:rotate(-90deg);}
     <div style="font-size:22px;font-weight:700;margin-bottom:10px;color:var(--accent);">Bật âm thanh</div>
     <div style="font-size:15px;color:var(--text2);margin-bottom:30px;">Chạm vào màn hình để kích hoạt phát âm</div>
     <div style="display:inline-block;padding:14px 28px;background:var(--accent);color:#0d0d0f;border-radius:12px;font-weight:700;font-size:16px;">Tap để bắt đầu</div>
+    <div id="debug-info" style="margin-top:20px;font-size:12px;color:var(--text2);max-width:400px;text-align:left;background:rgba(0,0,0,0.3);padding:10px;border-radius:8px;display:none;"></div>
   </div>
 </div>
 
@@ -744,58 +745,81 @@ async function init(){
     audioUnlock.style.display = 'flex';
     
     const unlockAudio = () => {
-      console.log('Unlocking audio...');
+      const debugPanel = document.getElementById('debug-info');
+      debugPanel.style.display = 'block';
+      
+      let debugLog = [];
+      const log = (msg) => {
+        debugLog.push(msg);
+        debugPanel.innerHTML = debugLog.join('<br>');
+        console.log(msg);
+      };
+      
+      log('🔍 Checking speechSynthesis...');
       
       if(!window.speechSynthesis){
-        console.error('speechSynthesis not supported');
-        audioUnlock.style.display = 'none';
+        log('❌ speechSynthesis NOT supported in this browser');
+        setTimeout(()=>audioUnlock.style.display = 'none', 3000);
         return;
       }
       
-      // Multiple unlock strategies
+      log('✅ speechSynthesis available');
+      
       try {
-        // Strategy 1: Speak empty utterance
+        // Get voices immediately
+        const voices1 = window.speechSynthesis.getVoices();
+        log(`📋 Voices on load: ${voices1.length}`);
+        
+        if(voices1.length > 0){
+          const ukVoices = voices1.filter(v=>v.lang.startsWith('en-GB') || v.lang.startsWith('en-UK'));
+          log(`🇬🇧 UK voices: ${ukVoices.length} (${ukVoices.map(v=>v.name.substring(0,15)).join(', ')})`);
+          _voices = voices1;
+        }
+        
+        // Unlock strategy 1: Empty utterance
+        log('🔓 Unlocking with empty utterance...');
         const u1 = new SpeechSynthesisUtterance('');
         u1.volume = 0;
         window.speechSynthesis.speak(u1);
         
-        // Strategy 2: Speak actual test word (very short)
+        // Unlock strategy 2: Test word
         setTimeout(()=>{
-          const u2 = new SpeechSynthesisUtterance('hi');
-          u2.volume = 0.01;
-          u2.rate = 2;
+          log('🔓 Test speak "hello"...');
+          const u2 = new SpeechSynthesisUtterance('hello');
+          u2.volume = 0.5;
+          u2.rate = 1;
           u2.lang = 'en-GB';
+          u2.onend = () => log('✅ Test speak completed');
+          u2.onerror = (e) => log(`❌ Test speak error: ${e.error}`);
           window.speechSynthesis.speak(u2);
-        }, 100);
+        }, 200);
         
-        // Load voices immediately
-        _voices = window.speechSynthesis.getVoices();
-        console.log('Initial voices:', _voices.length);
-        
-        // Setup voice change listener
+        // Wait for voices to load
         window.speechSynthesis.onvoiceschanged = () => {
-          _voices = window.speechSynthesis.getVoices();
-          console.log('Voices updated:', _voices.length);
-          if(_voices.length > 0){
-            const ukVoices = _voices.filter(v=>v.lang.startsWith('en-GB') || v.lang.startsWith('en-UK'));
-            console.log('UK voices available:', ukVoices.map(v=>v.name));
+          const voices2 = window.speechSynthesis.getVoices();
+          log(`📋 Voices after change: ${voices2.length}`);
+          _voices = voices2;
+          
+          if(voices2.length > 0){
+            const ukVoices = voices2.filter(v=>v.lang.startsWith('en-GB') || v.lang.startsWith('en-UK'));
+            log(`🇬🇧 UK voices available: ${ukVoices.length}`);
+            if(ukVoices.length > 0){
+              log(`   → ${ukVoices.map(v=>v.name).join(', ')}`);
+            }
           }
         };
         
-        // Trigger voice loading if needed
-        if(_voices.length === 0){
-          setTimeout(()=>{
-            _voices = window.speechSynthesis.getVoices();
-            console.log('Voices after delay:', _voices.length);
-          }, 200);
-        }
+        log('✅ Audio system initialized');
+        log('👆 Click anywhere to continue...');
+        
+        setTimeout(()=>{
+          audioUnlock.style.display = 'none';
+        }, 4000);
         
       } catch(e){
-        console.error('Unlock error:', e);
+        log(`❌ Error: ${e.message}`);
+        setTimeout(()=>audioUnlock.style.display = 'none', 3000);
       }
-      
-      audioUnlock.style.display = 'none';
-      console.log('Audio unlocked via user gesture');
     };
     
     audioUnlock.onclick = unlockAudio;
@@ -1756,75 +1780,57 @@ function speakWord(word){
   word = word.trim().toLowerCase();
   
   if(!window.speechSynthesis){
-    console.warn('speechSynthesis not available');
+    console.warn('❌ speechSynthesis not available');
     setSpeaking(false);
     return;
   }
 
+  console.log('🔊 Attempting to speak:', word);
   window.speechSynthesis.cancel();
   setSpeaking(true);
 
-  const doSpeak = () => {
-    const u = new SpeechSynthesisUtterance(word);
-    u.lang  = 'en-GB';  // Always UK now
-    u.rate  = 0.72;
-    u.pitch = 1.0;
-    
-    const voice = pickVoice('uk');
-    if(voice){
-      u.voice = voice;
-      console.log('Using voice:', voice.name);
-    } else {
-      console.warn('No UK voice found, using default');
-    }
-    
-    u.onend   = () => {
-      console.log('Speech ended');
-      setSpeaking(false);
-    };
-    u.onerror = (e) => {
-      console.error('Speech error:', e.error);
-      setSpeaking(false);
-    };
-    
-    try {
-      window.speechSynthesis.speak(u);
-      console.log('Speaking:', word);
-    } catch(e){
-      console.error('Speak failed:', e);
-      setSpeaking(false);
-    }
-  };
-
-  // Get voices
-  const voices = window.speechSynthesis.getVoices();
+  const u = new SpeechSynthesisUtterance(word);
+  u.lang  = 'en-GB';
+  u.rate  = 0.72;
+  u.pitch = 1.0;
   
-  if(voices.length === 0){
-    // Voices not loaded yet - wait for them
-    console.log('Waiting for voices to load...');
+  // Try to get UK voice
+  const voices = window.speechSynthesis.getVoices();
+  console.log(`   Available voices: ${voices.length}`);
+  
+  if(voices.length > 0){
+    // Try UK voice first
+    let voice = voices.find(v=>v.lang==='en-GB' || v.lang.startsWith('en-GB'));
     
-    let spoke = false;
-    const speakOnce = () => {
-      if(spoke) return;
-      spoke = true;
-      _voices = window.speechSynthesis.getVoices();
-      console.log('Voices loaded:', _voices.length);
-      doSpeak();
-    };
+    // Fallback to any English voice
+    if(!voice){
+      voice = voices.find(v=>v.lang.startsWith('en'));
+      console.log('   No UK voice, using:', voice?.name || 'default');
+    } else {
+      console.log('   Using UK voice:', voice.name);
+    }
     
-    window.speechSynthesis.onvoiceschanged = speakOnce;
-    
-    // Fallback: speak anyway after 500ms even without voices
-    setTimeout(()=>{
-      if(!spoke){
-        console.log('Timeout - speaking without voice selection');
-        doSpeak();
-      }
-    }, 500);
+    if(voice) u.voice = voice;
   } else {
-    // Voices already loaded
-    _voices = voices;
-    doSpeak();
+    console.log('   No voices loaded yet - using default');
+  }
+  
+  u.onstart = () => console.log('   ▶️ Speech started');
+  u.onend   = () => {
+    console.log('   ✅ Speech ended');
+    setSpeaking(false);
+  };
+  u.onerror = (e) => {
+    console.error('   ❌ Speech error:', e.error, e);
+    setSpeaking(false);
+  };
+  
+  try {
+    window.speechSynthesis.speak(u);
+    console.log('   speak() called successfully');
+  } catch(e){
+    console.error('   ❌ speak() failed:', e);
+    setSpeaking(false);
   }
 }
 function speakCurrent(){ speakWord(currentWord); }
