@@ -243,7 +243,7 @@ svg.donut{transform:rotate(-90deg);}
 </div>
 
 <!-- Audio unlock overlay (for student mode) -->
-<div id="audio-unlock" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(13,13,15,0.95);z-index:9999;display:none;align-items:center;justify-content:center;cursor:pointer;">
+<div id="audio-unlock" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(13,13,15,0.95);z-index:9999;display:none;align-items:center;justify-content:center;cursor:pointer;">
   <div style="text-align:center;padding:30px;">
     <div style="font-size:64px;margin-bottom:20px;">🔊</div>
     <div style="font-size:22px;font-weight:700;margin-bottom:10px;color:var(--accent);">Bật âm thanh</div>
@@ -742,24 +742,63 @@ async function init(){
     // Show audio unlock overlay for student mode
     const audioUnlock = document.getElementById('audio-unlock');
     audioUnlock.style.display = 'flex';
-    audioUnlock.onclick = () => {
-      // User interaction - unlock speech API
-      if(window.speechSynthesis){
-        // Speak a silent utterance to unlock
-        const unlock = new SpeechSynthesisUtterance('');
-        unlock.volume = 0;
-        window.speechSynthesis.speak(unlock);
+    
+    const unlockAudio = () => {
+      console.log('Unlocking audio...');
+      
+      if(!window.speechSynthesis){
+        console.error('speechSynthesis not supported');
+        audioUnlock.style.display = 'none';
+        return;
+      }
+      
+      // Multiple unlock strategies
+      try {
+        // Strategy 1: Speak empty utterance
+        const u1 = new SpeechSynthesisUtterance('');
+        u1.volume = 0;
+        window.speechSynthesis.speak(u1);
         
-        // Load voices
+        // Strategy 2: Speak actual test word (very short)
+        setTimeout(()=>{
+          const u2 = new SpeechSynthesisUtterance('hi');
+          u2.volume = 0.01;
+          u2.rate = 2;
+          u2.lang = 'en-GB';
+          window.speechSynthesis.speak(u2);
+        }, 100);
+        
+        // Load voices immediately
         _voices = window.speechSynthesis.getVoices();
+        console.log('Initial voices:', _voices.length);
+        
+        // Setup voice change listener
         window.speechSynthesis.onvoiceschanged = () => {
           _voices = window.speechSynthesis.getVoices();
-          console.log('Voices loaded:', _voices.length);
+          console.log('Voices updated:', _voices.length);
+          if(_voices.length > 0){
+            const ukVoices = _voices.filter(v=>v.lang.startsWith('en-GB') || v.lang.startsWith('en-UK'));
+            console.log('UK voices available:', ukVoices.map(v=>v.name));
+          }
         };
+        
+        // Trigger voice loading if needed
+        if(_voices.length === 0){
+          setTimeout(()=>{
+            _voices = window.speechSynthesis.getVoices();
+            console.log('Voices after delay:', _voices.length);
+          }, 200);
+        }
+        
+      } catch(e){
+        console.error('Unlock error:', e);
       }
+      
       audioUnlock.style.display = 'none';
       console.log('Audio unlocked via user gesture');
     };
+    
+    audioUnlock.onclick = unlockAudio;
     
     renderStudent();
     return;
@@ -962,9 +1001,8 @@ function showSpellingStep(w){
     </button>`
   ).join('');
 
-  // Auto-play pronunciation
+  // Don't auto-play - let user click speak button
   clearTimeout(speakTimer);
-  speakTimer = setTimeout(()=>speakWord(w.word), 300);
 }
 
 function generateSpellingOpts(word){
@@ -1084,7 +1122,8 @@ function showFlashcard(w){
   flipped=false;
   document.getElementById('rating-area').classList.remove('show');
 
-  clearTimeout(speakTimer); speakTimer=setTimeout(()=>speakWord(w.word),400);
+  // Don't auto-play - let user click speak button to ensure user gesture
+  clearTimeout(speakTimer);
   [0,1,2,3].forEach(q=>{
     const s=sm2Sim(w,q);
     document.getElementById(`nx${q}`).textContent = s.interval===0?'<1 ngày':s.interval===1?'1 ngày':`${s.interval} ngày`;
@@ -1186,7 +1225,8 @@ function nextQ(){
     document.getElementById('q-ph').textContent=correct.phonetic||'';
     document.getElementById('q-sent').style.display='none';
     document.getElementById('q-speak-btn').style.display='inline-flex';
-    clearTimeout(speakTimer); speakTimer=setTimeout(()=>speakWord(correct.word),300);
+    // Don't auto-play - let user click speak button
+    clearTimeout(speakTimer);
     document.getElementById('quiz-opts').innerHTML=opts.map(o=>
       `<button class="q-opt" data-id="${o.topicId}||${o.word}"
          onclick="checkQ(this,'${o.topicId}||${o.word}','${correct.topicId}||${correct.word}')">
