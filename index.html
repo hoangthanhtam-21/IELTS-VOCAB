@@ -101,7 +101,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding-bot
 .cf{background:linear-gradient(135deg,#1a1a22,#16161e);}
 .cb{background:linear-gradient(135deg,#1a1e2a,#161822);transform:rotateY(180deg);}
 .c-tag{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text2);margin-bottom:12px;}
-.c-word{font-family:'DM Sans',sans-serif;font-size:40px;font-weight:900;color:var(--accent);text-align:center;line-height:1.1;}
+.c-word{font-family:'DM Sans',sans-serif;font-size:40px;font-weight:900;color:var(--accent);text-align:center;line-height:1.1;text-transform:none;}
 .c-ph{font-size:15px;color:var(--accent2);margin-top:7px;}
 .c-type{font-size:12px;color:var(--text2);margin-top:4px;font-style:italic;}
 .c-def{font-size:16px;color:var(--text);text-align:center;line-height:1.6;}
@@ -143,7 +143,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding-bot
 .qtype-btn.active{background:var(--accent2);border-color:var(--accent2);color:#fff;font-weight:600;}
 .quiz-q-card{background:var(--surface);border-radius:var(--radius);padding:26px;border:1px solid var(--border);margin-bottom:16px;text-align:center;}
 .q-type-lbl{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;}
-.q-word{font-family:'DM Sans',sans-serif;font-size:33px;font-weight:700;color:var(--accent);margin-bottom:6px;}
+.q-word{font-family:'DM Sans',sans-serif;font-size:33px;font-weight:700;color:var(--accent);margin-bottom:6px;text-transform:none;}
 .q-ph{font-size:14px;color:var(--accent2);}
 .blank-sent{font-size:17px;color:var(--text);line-height:1.8;text-align:center;padding:0 8px;margin-top:6px;}
 .blank{display:inline-block;min-width:88px;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:700;font-family:'DM Sans',sans-serif;font-size:19px;text-align:center;padding:0 5px;}
@@ -210,22 +210,22 @@ svg.donut{transform:rotate(-90deg);}
 .spell-listen-ph{font-size:15px;color:var(--accent2);margin-top:6px;}
 .spell-listen-type{font-size:12px;color:var(--text2);font-style:italic;margin-top:4px;}
 .spell-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
-.spell-opt{padding:14px 12px;background:var(--surface);border:2px solid var(--border);border-radius:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:17px;font-weight:700;text-align:center;color:var(--text);transition:all .15s;letter-spacing:.5px;}
+.spell-opt{padding:14px 12px;background:var(--surface);border:2px solid var(--border);border-radius:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:17px;font-weight:700;text-align:center;color:var(--text);transition:all .15s;letter-spacing:.5px;text-transform:none;}
 .spell-opt:hover:not(.disabled){border-color:var(--accent2);background:var(--surface2);}
 .spell-opt.correct{border-color:var(--success)!important;background:#102a10!important;color:var(--success)!important;}
 .spell-opt.wrong{border-color:var(--danger)!important;background:#2a1010!important;color:var(--danger)!important;animation:shake .3s ease;}
 .spell-opt.disabled{cursor:default;}
 @keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
-.chat-msg{max-width:82%;padding:11px 15px;border-radius:14px;font-size:14px;line-height:1.6;}
+.chat-msg{max-width:82%;padding:11px 15px;border-radius:14px;font-size:14px;line-height:1.6;text-transform:none;}
 .chat-msg.user{background:var(--accent2);color:#fff;align-self:flex-end;border-bottom-right-radius:4px;}
 .chat-msg.ai{background:var(--surface2);color:var(--text);align-self:flex-start;border-bottom-left-radius:4px;border:1px solid var(--border);}
 .chat-msg.loading{opacity:.6;font-style:italic;}
 
 /* ── FILL BLANK EXERCISE ── */
-.fb-blank{display:inline-block;min-width:90px;padding:2px 8px;margin:0 3px;border-bottom:2px solid var(--accent2);color:var(--accent2);font-weight:600;cursor:pointer;transition:all .2s;vertical-align:baseline;}
+.fb-blank{display:inline-block;min-width:90px;padding:2px 8px;margin:0 3px;border-bottom:2px solid var(--accent2);color:var(--accent2);font-weight:600;cursor:pointer;transition:all .2s;vertical-align:baseline;text-transform:none;}
 .fb-blank:hover{background:var(--surface2);}
 .fb-blank.filled{color:var(--accent);border-color:var(--accent);}
-.fb-word{display:inline-block;padding:7px 14px;background:var(--surface2);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;transition:all .15s;user-select:none;}
+.fb-word{display:inline-block;padding:7px 14px;background:var(--surface2);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;transition:all .15s;user-select:none;text-transform:none;}
 .fb-word:hover{border-color:var(--accent2);transform:translateY(-1px);}
 .fb-word.used{opacity:.3;cursor:not-allowed;pointer-events:none;}
 
@@ -699,15 +699,24 @@ async function init(){
   // Check for ?bin=xxx in URL (student share link)
   const urlParams = new URLSearchParams(window.location.search);
   const sharedBinId = urlParams.get('bin');
+  const sharedKey = urlParams.get('key');
 
   if(sharedBinId){
     // Student mode: load shared bin directly
     document.getElementById('ov-msg').textContent = 'Đang tải từ vựng...';
+    if(!sharedKey){
+      document.getElementById('ov-msg').textContent = '⚠️ Link không hợp lệ (thiếu key)';
+      await sleep(2000);
+      ov.classList.add('hidden');
+      app.style.display = 'block';
+      document.getElementById('student-app').style.display = 'block';
+      CLOUD = {topics:[]};
+      renderStudent();
+      return;
+    }
     try {
-      // Use a temporary anonymous key to read (JSONBin allows public read if bin is not private)
-      const tempKey = '$2a$10$7xV.X8DgN5rQz1pYqH8dO.9mN3xW5Kj2Pq0R8tL6Yh4Me9Nf3Aj1K'; // placeholder
       const r = await fetch(`https://api.jsonbin.io/v3/b/${sharedBinId}/latest`, {
-        headers: {'X-Master-Key': tempKey, 'X-Access-Key': tempKey}
+        headers: {'X-Master-Key': sharedKey, 'X-Access-Key': sharedKey}
       });
       if(r.ok){
         CLOUD = (await r.json()).record || {topics:[]};
@@ -773,7 +782,7 @@ async function doSetup(){
     document.getElementById('student-app').style.display = 'block';
     showOnly(null);
     renderStudent();
-    const shareUrl = `${window.location.origin}${window.location.pathname}?bin=${CFG.binId}`;
+    const shareUrl = `${window.location.origin}${window.location.pathname}?bin=${CFG.binId}&key=${encodeURIComponent(CFG.apiKey)}`;
     setTimeout(()=>{
       if(confirm('✅ Cài đặt thành công!\n\nBấm OK để copy link chia sẻ cho học sinh.')){
         navigator.clipboard.writeText(shareUrl).then(()=>{
@@ -1227,17 +1236,24 @@ function buildPassageUI(passage, words){
   fbUserAnswers = {};
   
   let html = passage;
+  const usedWords = []; // Track which words actually appear in passage
+  
   words.forEach((w,i)=>{
     const blankId = `blank${i}`;
-    fbAnswers[blankId] = w.word;
     const regex = new RegExp(`\\b${w.word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\w*\\b`, 'gi');
-    html = html.replace(regex, `<span class="fb-blank" id="${blankId}" onclick="selectBlank('${blankId}')">_____</span>`);
+    
+    // Check if word exists in passage before replacing
+    if(regex.test(html)){
+      fbAnswers[blankId] = w.word;
+      html = html.replace(regex, `<span class="fb-blank" id="${blankId}" onclick="selectBlank('${blankId}')">_____</span>`);
+      usedWords.push(w);
+    }
   });
   
   document.getElementById('fb-passage').innerHTML = html;
   
-  // Word bank (shuffled)
-  const shuffled = [...words].sort(()=>Math.random()-.5);
+  // Word bank: only words that were actually blanked
+  const shuffled = [...usedWords].sort(()=>Math.random()-.5);
   document.getElementById('fb-wordbank').innerHTML = shuffled.map((w,i)=>
     `<span class="fb-word" id="word${i}" onclick="fillWord('word${i}','${w.word.replace(/'/g,"\\'")}')">${w.word}</span>`
   ).join('');
@@ -1422,12 +1438,12 @@ async function doLogin(){
 function doLogout(){ isAdmin=false; toStudent(); }
 
 function copyShareLink(){
-  if(!CFG.binId){
-    showToast('⚠️ Chưa có binId. Setup lại app!');
+  if(!CFG.binId || !CFG.apiKey){
+    showToast('⚠️ Chưa có binId/key. Setup lại app!');
     return;
   }
   const base = window.location.origin + window.location.pathname;
-  const shareUrl = `${base}?bin=${CFG.binId}`;
+  const shareUrl = `${base}?bin=${CFG.binId}&key=${encodeURIComponent(CFG.apiKey)}`;
   navigator.clipboard.writeText(shareUrl).then(()=>{
     showToast('✅ Đã copy link! Gửi cho học sinh nhé.');
   }).catch(()=>{
