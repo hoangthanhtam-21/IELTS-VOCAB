@@ -242,6 +242,16 @@ svg.donut{transform:rotate(-90deg);}
   <div class="ov-msg" id="ov-msg">Đang khởi động...</div>
 </div>
 
+<!-- Audio unlock overlay (for student mode) -->
+<div id="audio-unlock" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(13,13,15,0.95);z-index:9999;display:none;align-items:center;justify-content:center;cursor:pointer;">
+  <div style="text-align:center;padding:30px;">
+    <div style="font-size:64px;margin-bottom:20px;">🔊</div>
+    <div style="font-size:22px;font-weight:700;margin-bottom:10px;color:var(--accent);">Bật âm thanh</div>
+    <div style="font-size:15px;color:var(--text2);margin-bottom:30px;">Chạm vào màn hình để kích hoạt phát âm</div>
+    <div style="display:inline-block;padding:14px 28px;background:var(--accent);color:#0d0d0f;border-radius:12px;font-weight:700;font-size:16px;">Tap để bắt đầu</div>
+  </div>
+</div>
+
 <div id="app" style="display:none">
 
 <!-- ══════════════════════════════════════════
@@ -728,13 +738,29 @@ async function init(){
     ov.classList.add('hidden');
     app.style.display = 'block';
     document.getElementById('student-app').style.display = 'block';
-    // Trigger voice loading for student mode
-    if(window.speechSynthesis){
-      window.speechSynthesis.getVoices();
-      window.speechSynthesis.onvoiceschanged = () => {
+    
+    // Show audio unlock overlay for student mode
+    const audioUnlock = document.getElementById('audio-unlock');
+    audioUnlock.style.display = 'flex';
+    audioUnlock.onclick = () => {
+      // User interaction - unlock speech API
+      if(window.speechSynthesis){
+        // Speak a silent utterance to unlock
+        const unlock = new SpeechSynthesisUtterance('');
+        unlock.volume = 0;
+        window.speechSynthesis.speak(unlock);
+        
+        // Load voices
         _voices = window.speechSynthesis.getVoices();
-      };
-    }
+        window.speechSynthesis.onvoiceschanged = () => {
+          _voices = window.speechSynthesis.getVoices();
+          console.log('Voices loaded:', _voices.length);
+        };
+      }
+      audioUnlock.style.display = 'none';
+      console.log('Audio unlocked via user gesture');
+    };
+    
     renderStudent();
     return;
   }
@@ -1181,7 +1207,7 @@ function nextQ(){
       `<button class="q-opt" data-id="${o.topicId}||${o.word}"
          onclick="checkQ(this,'${o.topicId}||${o.word}','${correct.topicId}||${correct.word}')"
          style="text-align:center;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700">
-         ${o.word}</button>`).join('');
+         ${o.word.toLowerCase()}</button>`).join('');
   }
 }
 
@@ -1687,54 +1713,78 @@ function pickVoice(accent){
 
 function speakWord(word){
   if(!word||word==='—') return;
-  word = word.trim();
-  if(window.speechSynthesis) window.speechSynthesis.cancel();
+  word = word.trim().toLowerCase();
+  
+  if(!window.speechSynthesis){
+    console.warn('speechSynthesis not available');
+    setSpeaking(false);
+    return;
+  }
+
+  window.speechSynthesis.cancel();
   setSpeaking(true);
 
-  if(!window.speechSynthesis){ setSpeaking(false); return; }
-
-  // Voices may not be ready yet — retry once if empty
-  const trySpeak = () => {
+  const doSpeak = () => {
     const u = new SpeechSynthesisUtterance(word);
-    u.lang  = currentAccent==='us' ? 'en-US' : 'en-GB';
+    u.lang  = 'en-GB';  // Always UK now
     u.rate  = 0.72;
     u.pitch = 1.0;
-    const voice = pickVoice(currentAccent);
-    if(voice) u.voice = voice;
-    u.onend   = () => setSpeaking(false);
-    u.onerror = (e) => {
-      console.warn('Speech error:', e);
+    
+    const voice = pickVoice('uk');
+    if(voice){
+      u.voice = voice;
+      console.log('Using voice:', voice.name);
+    } else {
+      console.warn('No UK voice found, using default');
+    }
+    
+    u.onend   = () => {
+      console.log('Speech ended');
       setSpeaking(false);
     };
+    u.onerror = (e) => {
+      console.error('Speech error:', e.error);
+      setSpeaking(false);
+    };
+    
     try {
       window.speechSynthesis.speak(u);
+      console.log('Speaking:', word);
     } catch(e){
       console.error('Speak failed:', e);
       setSpeaking(false);
     }
   };
 
-  // Force load voices if not loaded yet
-  const voices = getVoices();
-  if(!voices.length){
-    // Try to trigger voice loading
-    if(window.speechSynthesis.getVoices().length === 0){
-      // Some browsers need this to trigger loading
-      const dummy = new SpeechSynthesisUtterance('');
-      window.speechSynthesis.speak(dummy);
-      window.speechSynthesis.cancel();
-    }
+  // Get voices
+  const voices = window.speechSynthesis.getVoices();
+  
+  if(voices.length === 0){
+    // Voices not loaded yet - wait for them
+    console.log('Waiting for voices to load...');
     
-    window.speechSynthesis.onvoiceschanged = () => {
+    let spoke = false;
+    const speakOnce = () => {
+      if(spoke) return;
+      spoke = true;
       _voices = window.speechSynthesis.getVoices();
-      if(_voices.length > 0) trySpeak();
+      console.log('Voices loaded:', _voices.length);
+      doSpeak();
     };
-    // Fallback: try anyway after delay
+    
+    window.speechSynthesis.onvoiceschanged = speakOnce;
+    
+    // Fallback: speak anyway after 500ms even without voices
     setTimeout(()=>{
-      if(getVoices().length > 0) trySpeak();
-    }, 300);
+      if(!spoke){
+        console.log('Timeout - speaking without voice selection');
+        doSpeak();
+      }
+    }, 500);
   } else {
-    trySpeak();
+    // Voices already loaded
+    _voices = voices;
+    doSpeak();
   }
 }
 function speakCurrent(){ speakWord(currentWord); }
