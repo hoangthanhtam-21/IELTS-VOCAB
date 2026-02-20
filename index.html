@@ -304,6 +304,15 @@ svg.donut{transform:rotate(-90deg);}
     <button class="admin-gear" onclick="showLoginScreen()" title="Admin">⚙</button>
   </header>
 
+  <!-- Debug Panel (visible for troubleshooting) -->
+  <div id="debug-panel" style="display:none;position:fixed;bottom:10px;right:10px;background:rgba(0,0,0,0.9);color:#0f0;padding:10px;border-radius:8px;font-size:11px;max-width:300px;z-index:9998;font-family:monospace;">
+    <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+      <strong>🔊 Audio Debug</strong>
+      <span onclick="document.getElementById('debug-panel').style.display='none'" style="cursor:pointer;color:#f00;">✕</span>
+    </div>
+    <div id="debug-content" style="max-height:200px;overflow-y:auto;"></div>
+  </div>
+
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="switchTab('topics')">🗂 Chủ đề</button>
     <button class="tab-btn" onclick="switchTab('study')">🧠 Học</button>
@@ -722,7 +731,10 @@ async function init(){
     // Store TTS key globally for speech functions
     if(sharedTTSKey){
       window.GOOGLE_TTS_KEY = sharedTTSKey;
+      debugLog(`🔊 Google TTS Key received: ${sharedTTSKey.substring(0,15)}...`);
       console.log('🔊 Google TTS enabled');
+    } else {
+      debugLog('⚠️ No Google TTS key in URL, will use browser speech');
     }
     
     if(!sharedKey){
@@ -909,6 +921,50 @@ async function init(){
 }
 
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+// Debug logging
+let debugLogs = [];
+function debugLog(msg){
+  const timestamp = new Date().toTimeString().split(' ')[0];
+  const logMsg = `[${timestamp}] ${msg}`;
+  debugLogs.push(logMsg);
+  console.log(logMsg);
+  
+  // Update debug panel if exists
+  const panel = document.getElementById('debug-content');
+  if(panel){
+    panel.innerHTML = debugLogs.slice(-20).join('<br>');
+    panel.scrollTop = panel.scrollHeight;
+  }
+}
+
+// Show debug panel with button
+function showDebugPanel(){
+  const panel = document.getElementById('debug-panel');
+  if(panel) panel.style.display = 'block';
+  
+  debugLog('=== DEBUG PANEL OPENED ===');
+  debugLog(`Google TTS Key: ${window.GOOGLE_TTS_KEY ? 'YES (' + window.GOOGLE_TTS_KEY.substring(0,10) + '...)' : 'NO'}`);
+  debugLog(`speechSynthesis: ${window.speechSynthesis ? 'Available' : 'NOT available'}`);
+  
+  if(window.speechSynthesis){
+    const voices = window.speechSynthesis.getVoices();
+    debugLog(`Browser voices: ${voices.length}`);
+  }
+}
+
+// Add test button to header
+window.addEventListener('DOMContentLoaded', () => {
+  const header = document.querySelector('header');
+  if(header){
+    const testBtn = document.createElement('button');
+    testBtn.textContent = '🔍';
+    testBtn.style.cssText = 'position:fixed;top:10px;right:10px;z-index:9999;padding:8px 12px;background:var(--accent);border:none;border-radius:8px;cursor:pointer;font-size:16px;';
+    testBtn.onclick = showDebugPanel;
+    testBtn.title = 'Debug Audio';
+    document.body.appendChild(testBtn);
+  }
+});
 
 // ════════════════════════════════════
 //  SETUP
@@ -1828,22 +1884,29 @@ function speakWord(word){
   if(!word||word==='—') return;
   word = word.trim().toLowerCase();
   
+  debugLog(`🔊 speakWord called: "${word}"`);
+  
   // Try Google TTS first if key available
   if(window.GOOGLE_TTS_KEY){
+    debugLog('   → Using Google TTS');
     speakWithGoogleTTS(word);
     return;
   }
   
+  debugLog('   → No Google TTS key, using browser');
   // Fallback to browser speechSynthesis
   speakWithBrowser(word);
 }
 
 async function speakWithGoogleTTS(word){
-  console.log('🔊 Speaking with Google TTS:', word);
+  debugLog('   📡 Calling Google TTS API...');
   setSpeaking(true);
   
   try {
-    const response = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key=' + window.GOOGLE_TTS_KEY, {
+    const url = 'https://texttospeech.googleapis.com/v1/text:synthesize?key=' + window.GOOGLE_TTS_KEY;
+    debugLog(`   🌐 URL: ${url.substring(0, 80)}...`);
+    
+    const response = await fetch(url, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -1860,34 +1923,61 @@ async function speakWithGoogleTTS(word){
       })
     });
     
+    debugLog(`   📥 Response status: ${response.status}`);
+    
     if(!response.ok){
-      console.error('   ❌ Google TTS error:', response.status);
+      const errorText = await response.text();
+      debugLog(`   ❌ API error: ${errorText.substring(0, 100)}`);
       setSpeaking(false);
-      // Fallback to browser
+      debugLog('   ↩️ Fallback to browser');
       speakWithBrowser(word);
       return;
     }
     
     const data = await response.json();
+    debugLog(`   ✅ Got audio data: ${data.audioContent ? data.audioContent.substring(0, 20) + '...' : 'EMPTY'}`);
+    
+    if(!data.audioContent){
+      debugLog('   ❌ No audio content in response');
+      setSpeaking(false);
+      speakWithBrowser(word);
+      return;
+    }
+    
     const audioContent = data.audioContent;
     
     // Play audio
+    debugLog('   🎵 Creating audio element...');
     const audio = new Audio('data:audio/mp3;base64,' + audioContent);
-    audio.onplay = () => console.log('   ✅ Playing');
+    
+    audio.onloadstart = () => debugLog('   ⏳ Audio loading...');
+    audio.oncanplay = () => debugLog('   ✅ Audio ready');
+    audio.onplay = () => debugLog('   ▶️ Playing...');
     audio.onended = () => {
-      console.log('   ✅ Completed');
+      debugLog('   ✅ Completed');
       setSpeaking(false);
     };
     audio.onerror = (e) => {
-      console.error('   ❌ Audio error:', e);
+      debugLog(`   ❌ Audio play error: ${e.type}`);
       setSpeaking(false);
     };
-    audio.play();
+    
+    debugLog('   ▶️ Calling audio.play()...');
+    const playPromise = audio.play();
+    
+    if(playPromise !== undefined){
+      playPromise
+        .then(() => debugLog('   ✅ play() promise resolved'))
+        .catch(e => {
+          debugLog(`   ❌ play() promise rejected: ${e.message}`);
+          setSpeaking(false);
+        });
+    }
     
   } catch(e){
-    console.error('   ❌ Exception:', e);
+    debugLog(`   ❌ Exception: ${e.message}`);
     setSpeaking(false);
-    // Fallback to browser
+    debugLog('   ↩️ Fallback to browser');
     speakWithBrowser(word);
   }
 }
@@ -1897,16 +1987,17 @@ function speakWithBrowser(word){
   word = word.trim().toLowerCase();
   
   if(!window.speechSynthesis){
-    console.warn('❌ speechSynthesis not available');
+    debugLog('   ❌ speechSynthesis not available');
     setSpeaking(false);
     return;
   }
 
-  console.log('🔊 Speaking:', word);
+  debugLog('   🎙️ Using browser speech');
   
   // Cancel and wait longer to ensure clean state
   if(window.speechSynthesis.speaking){
     window.speechSynthesis.cancel();
+    debugLog('   ⏹️ Cancelled previous speech');
   }
   
   setSpeaking(true);
@@ -1916,7 +2007,7 @@ function speakWithBrowser(word){
   
   const trySpeak = (voiceToUse, langToUse) => {
     attemptCount++;
-    console.log(`   Attempt ${attemptCount}/${maxAttempts}`);
+    debugLog(`   📢 Attempt ${attemptCount}/${maxAttempts}`);
     
     setTimeout(() => {
       const u = new SpeechSynthesisUtterance(word);
@@ -1927,42 +2018,38 @@ function speakWithBrowser(word){
       
       if(voiceToUse){
         u.voice = voiceToUse;
-        console.log(`   Using: ${voiceToUse.name}`);
+        debugLog(`   🗣️ Voice: ${voiceToUse.name}`);
       } else {
-        console.log(`   Using default for lang: ${u.lang}`);
+        debugLog(`   🗣️ Default voice (lang: ${u.lang})`);
       }
       
       u.onstart = () => {
-        console.log('   ✅ Started');
+        debugLog('   ▶️ Started');
       };
       
       u.onend = () => {
-        console.log('   ✅ Completed');
+        debugLog('   ✅ Completed');
         setSpeaking(false);
       };
       
       u.onerror = (e) => {
-        console.error(`   ❌ Error: ${e.error}`);
+        debugLog(`   ❌ Error: ${e.error}`);
         
         if(e.error === 'synthesis-failed' && attemptCount < maxAttempts){
           const voices = window.speechSynthesis.getVoices();
           
           if(attemptCount === 1){
-            // Attempt 2: Try different UK voice or any non-US English
-            console.log('   Retrying with fallback voice...');
+            debugLog('   🔄 Retry with fallback voice...');
             const ukVoices = voices.filter(v=>v.lang.startsWith('en-GB'));
             const nonUSVoices = voices.filter(v=>v.lang.startsWith('en') && !v.lang.includes('US'));
-            
-            // Try second UK voice if exists, otherwise any non-US
             const fallbackVoice = ukVoices[1] || nonUSVoices[0];
             trySpeak(fallbackVoice, fallbackVoice?.lang || 'en-GB');
             
           } else if(attemptCount === 2){
-            // Attempt 3: No voice specified, just language
-            console.log('   Retrying with no voice (lang only)...');
+            debugLog('   🔄 Retry with no voice...');
             trySpeak(null, 'en-GB');
           } else {
-            console.error('   ❌ All attempts failed');
+            debugLog('   ❌ All attempts failed');
             setSpeaking(false);
           }
         } else {
@@ -1972,9 +2059,9 @@ function speakWithBrowser(word){
       
       try {
         window.speechSynthesis.speak(u);
-        console.log('   speak() called');
+        debugLog('   ✅ speak() called');
       } catch(e){
-        console.error('   ❌ Exception:', e);
+        debugLog(`   ❌ speak() exception: ${e.message}`);
         setSpeaking(false);
       }
     }, 100);
@@ -1982,11 +2069,11 @@ function speakWithBrowser(word){
   
   // Start with cached UK voice or find one
   if(_cachedUKVoice){
-    console.log(`   Using cached: ${_cachedUKVoice.name}`);
+    debugLog(`   💾 Using cached: ${_cachedUKVoice.name}`);
     trySpeak(_cachedUKVoice, 'en-GB');
   } else {
     const voices = window.speechSynthesis.getVoices();
-    console.log(`   Finding voice from ${voices.length} total...`);
+    debugLog(`   🔍 Finding voice from ${voices.length} total...`);
     
     const ukVoices = voices.filter(v => 
       v.lang === 'en-GB' || 
@@ -1997,10 +2084,10 @@ function speakWithBrowser(word){
     
     if(ukVoices.length > 0){
       _cachedUKVoice = ukVoices[0];
-      console.log(`   Found UK: ${_cachedUKVoice.name}`);
+      debugLog(`   ✅ Found UK: ${_cachedUKVoice.name}`);
       trySpeak(_cachedUKVoice, 'en-GB');
     } else {
-      console.log(`   No UK voice, using default`);
+      debugLog(`   ⚠️ No UK voice, using default`);
       trySpeak(null, 'en-GB');
     }
   }
