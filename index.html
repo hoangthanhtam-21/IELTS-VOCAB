@@ -265,7 +265,6 @@ svg.donut{transform:rotate(-90deg);}
       <h2 style="text-align:center">Cài đặt lần đầu</h2>
       <p style="text-align:center">Kết nối với JSONBin để lưu từ vựng trên cloud — học sinh trên mọi thiết bị đều thấy cùng nội dung.</p>
       <div class="setup-field"><label>JSONBin Secret Key</label><input id="s-key" type="text" placeholder="$2b$10$..."></div>
-      <div class="setup-field"><label>Google Cloud TTS API Key <span style="color:var(--text2);font-weight:400">(tuỳ chọn — giọng đọc chất lượng cao)</span></label><input id="s-tts" type="text" placeholder="AIza..."></div>
       <div class="setup-field"><label>Anthropic API Key <span style="color:var(--text2);font-weight:400">(tuỳ chọn — để dùng tính năng AI)</span></label><input id="s-claude" type="text" placeholder="sk-ant-..."></div>
       <div class="setup-field"><label>Mật khẩu Admin (giáo viên)</label><input id="s-pwd" type="password" placeholder="Đặt mật khẩu bảo mật"></div>
       <button class="btn btn-p" style="width:100%;justify-content:center;margin-top:6px" onclick="doSetup()">
@@ -276,10 +275,7 @@ svg.donut{transform:rotate(-90deg);}
         📌 <strong>Cách lấy JSONBin Key (miễn phí):</strong><br>
         1. Vào <a href="https://jsonbin.io" target="_blank">jsonbin.io</a> → Sign up (miễn phí)<br>
         2. Dashboard → API Keys → copy <strong>Secret Access Key</strong><br><br>
-        🔊 <strong>Google Cloud TTS API Key (giọng đọc chất lượng cao):</strong><br>
-        1. Vào <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a> → Enable "Cloud Text-to-Speech API"<br>
-        2. APIs & Services → Credentials → Create API Key → Copy key<br>
-        <em style="color:var(--text2);font-size:12px">Miễn phí 1 triệu ký tự/tháng. Nếu không nhập, dùng giọng trình duyệt.</em><br><br>
+        🔊 <strong>Giọng đọc:</strong> App tự động dùng Google Translate TTS (miễn phí, giọng UK chuẩn)<br><br>
         🤖 <strong>Anthropic API Key (để dùng AI):</strong><br>
         Vào <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys → tạo key mới
       </div>
@@ -505,7 +501,10 @@ svg.donut{transform:rotate(-90deg);}
 ══════════════════════════════════════════ -->
 <div id="screen-admin" class="screen">
   <div class="admin-hdr">
-    <span class="admin-title">⚙️ Admin Panel</span>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span class="admin-title">⚙️ Admin Panel</span>
+      <span id="tts-status-badge" style="font-size:11px;padding:3px 8px;border-radius:12px;background:var(--surface2);color:var(--text2);border:1px solid var(--border);"></span>
+    </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-p btn-sm" onclick="copyShareLink()" title="Copy link chia sẻ cho học sinh">🔗 Link học sinh</button>
       <button class="btn btn-s btn-sm" onclick="toStudent()">← Thoát</button>
@@ -722,20 +721,11 @@ async function init(){
   const urlParams = new URLSearchParams(window.location.search);
   const sharedBinId = urlParams.get('bin');
   const sharedKey = urlParams.get('key');
-  const sharedTTSKey = urlParams.get('tts');  // Google TTS API key
 
   if(sharedBinId){
     // Student mode: load shared bin directly
     document.getElementById('ov-msg').textContent = 'Đang tải từ vựng...';
-    
-    // Store TTS key globally for speech functions
-    if(sharedTTSKey){
-      window.GOOGLE_TTS_KEY = sharedTTSKey;
-      debugLog(`🔊 Google TTS Key received: ${sharedTTSKey.substring(0,15)}...`);
-      console.log('🔊 Google TTS enabled');
-    } else {
-      debugLog('⚠️ No Google TTS key in URL, will use browser speech');
-    }
+    debugLog('🔊 Google Translate TTS enabled (free)');
     
     if(!sharedKey){
       document.getElementById('ov-msg').textContent = '⚠️ Link không hợp lệ (thiếu key)';
@@ -908,12 +898,6 @@ async function init(){
     CLOUD = {topics:[]};
   }
   
-  // Set TTS key for teacher mode
-  if(CFG.ttsKey){
-    window.GOOGLE_TTS_KEY = CFG.ttsKey;
-    console.log('🔊 Google TTS enabled (teacher)');
-  }
-  
   ov.classList.add('hidden');
   app.style.display = 'block';
   document.getElementById('student-app').style.display = 'block';
@@ -944,7 +928,7 @@ function showDebugPanel(){
   if(panel) panel.style.display = 'block';
   
   debugLog('=== DEBUG PANEL OPENED ===');
-  debugLog(`Google TTS Key: ${window.GOOGLE_TTS_KEY ? 'YES (' + window.GOOGLE_TTS_KEY.substring(0,10) + '...)' : 'NO'}`);
+  debugLog(`Google Translate TTS: Always enabled (free)`);
   debugLog(`speechSynthesis: ${window.speechSynthesis ? 'Available' : 'NOT available'}`);
   
   if(window.speechSynthesis){
@@ -979,7 +963,6 @@ async function doSetup(){
   errEl.style.display = 'none';
   try {
     CFG.apiKey    = key;
-    CFG.ttsKey    = document.getElementById('s-tts').value.trim();
     CFG.claudeKey = document.getElementById('s-claude').value.trim();
     CFG.pwdHash   = await sha256(pwd);
     CFG.binId   = await binCreate({topics:[]});
@@ -989,10 +972,10 @@ async function doSetup(){
     document.getElementById('student-app').style.display = 'block';
     showOnly(null);
     renderStudent();
-    let shareUrl = `${window.location.origin}${window.location.pathname}?bin=${CFG.binId}&key=${encodeURIComponent(CFG.apiKey)}`;
-    if(CFG.ttsKey) shareUrl += `&tts=${encodeURIComponent(CFG.ttsKey)}`;
+    const shareUrl = `${window.location.origin}${window.location.pathname}?bin=${CFG.binId}&key=${encodeURIComponent(CFG.apiKey)}`;
+    
     setTimeout(()=>{
-      if(confirm('✅ Cài đặt thành công!\n\nBấm OK để copy link chia sẻ cho học sinh.')){
+      if(confirm('✅ Cài đặt thành công!\n\n🔊 Giọng đọc UK tự động kích hoạt (Google Translate TTS)\n\nBấm OK để copy link chia sẻ cho học sinh.')){
         navigator.clipboard.writeText(shareUrl).then(()=>{
           showToast('📋 Đã copy link! Gửi cho học sinh.');
         }).catch(()=>{
@@ -1641,10 +1624,22 @@ async function doLogin(){
     document.getElementById('student-app').style.display='none';
     showOnly('screen-admin');
     renderAdminTopics(); populateSels();
+    updateTTSStatusBadge();
   } else {
     document.getElementById('login-err').style.display='block';
   }
 }
+
+function updateTTSStatusBadge(){
+  const badge = document.getElementById('tts-status-badge');
+  if(badge){
+    badge.textContent = '🔊 Google Translate TTS';
+    badge.style.background = 'var(--success)';
+    badge.style.color = '#000';
+    badge.style.borderColor = 'var(--success)';
+  }
+}
+
 function doLogout(){ isAdmin=false; toStudent(); }
 
 function copyShareLink(){
@@ -1653,8 +1648,7 @@ function copyShareLink(){
     return;
   }
   const base = window.location.origin + window.location.pathname;
-  let shareUrl = `${base}?bin=${CFG.binId}&key=${encodeURIComponent(CFG.apiKey)}`;
-  if(CFG.ttsKey) shareUrl += `&tts=${encodeURIComponent(CFG.ttsKey)}`;
+  const shareUrl = `${base}?bin=${CFG.binId}&key=${encodeURIComponent(CFG.apiKey)}`;
   
   navigator.clipboard.writeText(shareUrl).then(()=>{
     showToast('✅ Đã copy link! Gửi cho học sinh nhé.');
@@ -1886,80 +1880,35 @@ function speakWord(word){
   
   debugLog(`🔊 speakWord called: "${word}"`);
   
-  // Try Google TTS first if key available
-  if(window.GOOGLE_TTS_KEY){
-    debugLog('   → Using Google TTS');
-    speakWithGoogleTTS(word);
-    return;
-  }
-  
-  debugLog('   → No Google TTS key, using browser');
-  // Fallback to browser speechSynthesis
-  speakWithBrowser(word);
+  // Try Google Translate TTS first (free, no key needed)
+  speakWithGoogleTranslate(word);
 }
 
-async function speakWithGoogleTTS(word){
-  debugLog('   📡 Calling Google TTS API...');
+function speakWithGoogleTranslate(word){
+  debugLog('   📡 Using Google Translate TTS (free)...');
   setSpeaking(true);
   
   try {
-    const url = 'https://texttospeech.googleapis.com/v1/text:synthesize?key=' + window.GOOGLE_TTS_KEY;
-    debugLog(`   🌐 URL: ${url.substring(0, 80)}...`);
+    // Google Translate TTS - free public API, UK English
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en-GB&client=tw-ob&q=${encodeURIComponent(word)}`;
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        input: {text: word},
-        voice: {
-          languageCode: 'en-GB',
-          name: 'en-GB-Standard-A'  // UK female voice
-        },
-        audioConfig: {
-          audioEncoding: 'MP3',
-          speakingRate: 0.75,
-          pitch: 0
-        }
-      })
-    });
-    
-    debugLog(`   📥 Response status: ${response.status}`);
-    
-    if(!response.ok){
-      const errorText = await response.text();
-      debugLog(`   ❌ API error: ${errorText.substring(0, 100)}`);
-      setSpeaking(false);
-      debugLog('   ↩️ Fallback to browser');
-      speakWithBrowser(word);
-      return;
-    }
-    
-    const data = await response.json();
-    debugLog(`   ✅ Got audio data: ${data.audioContent ? data.audioContent.substring(0, 20) + '...' : 'EMPTY'}`);
-    
-    if(!data.audioContent){
-      debugLog('   ❌ No audio content in response');
-      setSpeaking(false);
-      speakWithBrowser(word);
-      return;
-    }
-    
-    const audioContent = data.audioContent;
-    
-    // Play audio
+    debugLog(`   🌐 URL: ${url}`);
     debugLog('   🎵 Creating audio element...');
-    const audio = new Audio('data:audio/mp3;base64,' + audioContent);
     
-    audio.onloadstart = () => debugLog('   ⏳ Audio loading...');
-    audio.oncanplay = () => debugLog('   ✅ Audio ready');
+    const audio = new Audio(url);
+    
+    audio.onloadstart = () => debugLog('   ⏳ Loading...');
+    audio.oncanplay = () => debugLog('   ✅ Ready');
     audio.onplay = () => debugLog('   ▶️ Playing...');
     audio.onended = () => {
       debugLog('   ✅ Completed');
       setSpeaking(false);
     };
     audio.onerror = (e) => {
-      debugLog(`   ❌ Audio play error: ${e.type}`);
+      debugLog(`   ❌ Google Translate error: ${e.type}`);
+      debugLog('   ↩️ Fallback to browser speech');
       setSpeaking(false);
+      speakWithBrowser(word);
     };
     
     debugLog('   ▶️ Calling audio.play()...');
@@ -1967,17 +1916,20 @@ async function speakWithGoogleTTS(word){
     
     if(playPromise !== undefined){
       playPromise
-        .then(() => debugLog('   ✅ play() promise resolved'))
+        .then(() => debugLog('   ✅ play() started'))
         .catch(e => {
-          debugLog(`   ❌ play() promise rejected: ${e.message}`);
+          debugLog(`   ❌ play() blocked: ${e.name}`);
+          if(e.name === 'NotAllowedError'){
+            debugLog('   ⚠️ Autoplay blocked - need user gesture');
+          }
           setSpeaking(false);
+          speakWithBrowser(word);
         });
     }
     
   } catch(e){
     debugLog(`   ❌ Exception: ${e.message}`);
     setSpeaking(false);
-    debugLog('   ↩️ Fallback to browser');
     speakWithBrowser(word);
   }
 }
