@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IELTS Vocab Master</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- ResponsiveVoice - Free text-to-speech API -->
+<script src="https://code.responsivevoice.org/responsivevoice.js?key=jQZ2zl0q"></script>
 <style>
 :root{--bg:#0d0d0f;--surface:#16161a;--surface2:#1e1e24;--border:#2a2a35;--accent:#e8c547;--accent2:#7c6ee0;--accent3:#4ecdc4;--text:#f0eff4;--text2:#9d9daf;--danger:#ff6b6b;--success:#6bcb77;--radius:16px;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -275,7 +277,7 @@ svg.donut{transform:rotate(-90deg);}
         📌 <strong>Cách lấy JSONBin Key (miễn phí):</strong><br>
         1. Vào <a href="https://jsonbin.io" target="_blank">jsonbin.io</a> → Sign up (miễn phí)<br>
         2. Dashboard → API Keys → copy <strong>Secret Access Key</strong><br><br>
-        🔊 <strong>Giọng đọc:</strong> App tự động dùng Google Translate TTS (miễn phí, giọng UK chuẩn)<br><br>
+        🔊 <strong>Giọng đọc:</strong> App tự động dùng ResponsiveVoice (miễn phí, hoạt động trên mọi trình duyệt & thiết bị)<br><br>
         🤖 <strong>Anthropic API Key (để dùng AI):</strong><br>
         Vào <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys → tạo key mới
       </div>
@@ -725,7 +727,7 @@ async function init(){
   if(sharedBinId){
     // Student mode: load shared bin directly
     document.getElementById('ov-msg').textContent = 'Đang tải từ vựng...';
-    debugLog('🔊 Google Translate TTS enabled (free)');
+    debugLog('🔊 ResponsiveVoice TTS enabled (free, cross-browser)');
     
     if(!sharedKey){
       document.getElementById('ov-msg').textContent = '⚠️ Link không hợp lệ (thiếu key)';
@@ -928,7 +930,10 @@ function showDebugPanel(){
   if(panel) panel.style.display = 'block';
   
   debugLog('=== DEBUG PANEL OPENED ===');
-  debugLog(`Google Translate TTS: Always enabled (free)`);
+  debugLog(`ResponsiveVoice: ${window.responsiveVoice ? 'Loaded ✅' : 'NOT loaded ❌'}`);
+  if(window.responsiveVoice){
+    debugLog(`  Available voices: ${window.responsiveVoice.getVoices().length}`);
+  }
   debugLog(`speechSynthesis: ${window.speechSynthesis ? 'Available' : 'NOT available'}`);
   
   if(window.speechSynthesis){
@@ -975,7 +980,7 @@ async function doSetup(){
     const shareUrl = `${window.location.origin}${window.location.pathname}?bin=${CFG.binId}&key=${encodeURIComponent(CFG.apiKey)}`;
     
     setTimeout(()=>{
-      if(confirm('✅ Cài đặt thành công!\n\n🔊 Giọng đọc UK tự động kích hoạt (Google Translate TTS)\n\nBấm OK để copy link chia sẻ cho học sinh.')){
+      if(confirm('✅ Cài đặt thành công!\n\n🔊 Giọng đọc UK tự động kích hoạt (ResponsiveVoice - hoạt động trên mọi trình duyệt)\n\nBấm OK để copy link chia sẻ cho học sinh.')){
         navigator.clipboard.writeText(shareUrl).then(()=>{
           showToast('📋 Đã copy link! Gửi cho học sinh.');
         }).catch(()=>{
@@ -1633,7 +1638,7 @@ async function doLogin(){
 function updateTTSStatusBadge(){
   const badge = document.getElementById('tts-status-badge');
   if(badge){
-    badge.textContent = '🔊 Google Translate TTS';
+    badge.textContent = '🔊 ResponsiveVoice Active';
     badge.style.background = 'var(--success)';
     badge.style.color = '#000';
     badge.style.borderColor = 'var(--success)';
@@ -1880,53 +1885,41 @@ function speakWord(word){
   
   debugLog(`🔊 speakWord called: "${word}"`);
   
-  // Try Google Translate TTS first (free, no key needed)
-  speakWithGoogleTranslate(word);
+  // Try ResponsiveVoice first (works on all browsers, free)
+  if(window.responsiveVoice){
+    speakWithResponsiveVoice(word);
+  } else {
+    // Fallback to browser if ResponsiveVoice not loaded
+    debugLog('   ⚠️ ResponsiveVoice not loaded, using browser');
+    speakWithBrowser(word);
+  }
 }
 
-function speakWithGoogleTranslate(word){
-  debugLog('   📡 Using Google Translate TTS (free)...');
+function speakWithResponsiveVoice(word){
+  debugLog('   🎙️ Using ResponsiveVoice (free, cross-browser)');
   setSpeaking(true);
   
   try {
-    // Google Translate TTS - free public API, UK English
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en-GB&client=tw-ob&q=${encodeURIComponent(word)}`;
-    
-    debugLog(`   🌐 URL: ${url}`);
-    debugLog('   🎵 Creating audio element...');
-    
-    const audio = new Audio(url);
-    
-    audio.onloadstart = () => debugLog('   ⏳ Loading...');
-    audio.oncanplay = () => debugLog('   ✅ Ready');
-    audio.onplay = () => debugLog('   ▶️ Playing...');
-    audio.onended = () => {
-      debugLog('   ✅ Completed');
-      setSpeaking(false);
-    };
-    audio.onerror = (e) => {
-      debugLog(`   ❌ Google Translate error: ${e.type}`);
-      debugLog('   ↩️ Fallback to browser speech');
-      setSpeaking(false);
-      speakWithBrowser(word);
-    };
-    
-    debugLog('   ▶️ Calling audio.play()...');
-    const playPromise = audio.play();
-    
-    if(playPromise !== undefined){
-      playPromise
-        .then(() => debugLog('   ✅ play() started'))
-        .catch(e => {
-          debugLog(`   ❌ play() blocked: ${e.name}`);
-          if(e.name === 'NotAllowedError'){
-            debugLog('   ⚠️ Autoplay blocked - need user gesture');
-          }
-          setSpeaking(false);
-          speakWithBrowser(word);
-        });
-    }
-    
+    // ResponsiveVoice - free API, works on all browsers
+    window.responsiveVoice.speak(word, "UK English Female", {
+      rate: 0.75,
+      pitch: 1,
+      volume: 1,
+      onstart: () => {
+        debugLog('   ▶️ Started');
+      },
+      onend: () => {
+        debugLog('   ✅ Completed');
+        setSpeaking(false);
+      },
+      onerror: (e) => {
+        debugLog(`   ❌ ResponsiveVoice error: ${e}`);
+        setSpeaking(false);
+        debugLog('   ↩️ Fallback to browser');
+        speakWithBrowser(word);
+      }
+    });
+    debugLog('   ✅ ResponsiveVoice speak() called');
   } catch(e){
     debugLog(`   ❌ Exception: ${e.message}`);
     setSpeaking(false);
