@@ -1542,7 +1542,8 @@ function checkQ(btn,selId,corrId){
   qT++;
   if(selId===corrId){
     btn.classList.add('correct'); qC++; showToast('✅ Chính xác!');
-    if(qType!=='meaning') setTimeout(()=>speakWord(currentWord),300);
+    // Speak immediately while user gesture is fresh (no setTimeout!)
+    if(qType!=='meaning') speakWord(currentWord);
   } else {
     btn.classList.add('wrong'); qW++;
     document.querySelectorAll('.q-opt').forEach(b=>{ if(b.dataset.id===corrId) b.classList.add('reveal'); });
@@ -1883,43 +1884,55 @@ function speakWord(word){
   if(!word||word==='—') return;
   word = word.trim().toLowerCase();
   
-  debugLog(`🔊 speakWord called: "${word}"`);
-  
-  // Try ResponsiveVoice first (works on all browsers, free)
-  if(window.responsiveVoice){
-    speakWithResponsiveVoice(word);
-  } else {
-    // Fallback to browser if ResponsiveVoice not loaded
-    debugLog('   ⚠️ ResponsiveVoice not loaded, using browser');
-    speakWithBrowser(word);
-  }
-}
-
-function speakWithResponsiveVoice(word){
-  debugLog('   🎙️ Using ResponsiveVoice (free, cross-browser)');
+  debugLog(`🔊 speakWord: "${word}"`);
   setSpeaking(true);
   
+  // CRITICAL: Must call speak synchronously within user gesture
+  // Try ResponsiveVoice first
+  if(typeof responsiveVoice !== 'undefined' && responsiveVoice.voiceSupport()){
+    debugLog('   Using ResponsiveVoice');
+    try {
+      responsiveVoice.cancel(); // Cancel any previous
+      responsiveVoice.speak(word, "UK English Female", {
+        rate: 0.75,
+        pitch: 1,
+        volume: 1,
+        onstart: () => debugLog('   ▶️ Started'),
+        onend: () => {
+          debugLog('   ✅ Done');
+          setSpeaking(false);
+        },
+        onerror: (e) => {
+          debugLog(`   ❌ Error: ${e}`);
+          setSpeaking(false);
+        }
+      });
+      return;
+    } catch(e){
+      debugLog(`   ❌ ResponsiveVoice failed: ${e.message}`);
+    }
+  }
+  
+  // Fallback: Try VoiceRSS (another free API)
+  debugLog('   Trying VoiceRSS...');
   try {
-    // ResponsiveVoice - free API, works on all browsers
-    window.responsiveVoice.speak(word, "UK English Female", {
-      rate: 0.75,
-      pitch: 1,
-      volume: 1,
-      onstart: () => {
-        debugLog('   ▶️ Started');
-      },
-      onend: () => {
-        debugLog('   ✅ Completed');
-        setSpeaking(false);
-      },
-      onerror: (e) => {
-        debugLog(`   ❌ ResponsiveVoice error: ${e}`);
-        setSpeaking(false);
-        debugLog('   ↩️ Fallback to browser');
-        speakWithBrowser(word);
-      }
+    const voiceRssUrl = `https://api.voicerss.org/?key=d02e791da3474baeb47ca325e3a1ae65&hl=en-gb&src=${encodeURIComponent(word)}`;
+    const audio = new Audio(voiceRssUrl);
+    audio.onplay = () => debugLog('   ▶️ VoiceRSS playing');
+    audio.onended = () => {
+      debugLog('   ✅ Done');
+      setSpeaking(false);
+    };
+    audio.onerror = () => {
+      debugLog('   ❌ VoiceRSS failed, using browser');
+      setSpeaking(false);
+      speakWithBrowser(word);
+    };
+    audio.play().catch(e => {
+      debugLog(`   ❌ Audio blocked: ${e.message}`);
+      setSpeaking(false);
+      speakWithBrowser(word);
     });
-    debugLog('   ✅ ResponsiveVoice speak() called');
   } catch(e){
     debugLog(`   ❌ Exception: ${e.message}`);
     setSpeaking(false);
@@ -1927,114 +1940,62 @@ function speakWithResponsiveVoice(word){
   }
 }
 
+function speakWithResponsiveVoice(word){
+  // This function is no longer used - kept for compatibility
+  speakWord(word);
+}
+
 function speakWithBrowser(word){
   if(!word||word==='—') return;
   word = word.trim().toLowerCase();
   
   if(!window.speechSynthesis){
-    debugLog('   ❌ speechSynthesis not available');
+    debugLog('   ❌ speechSynthesis N/A');
     setSpeaking(false);
     return;
   }
 
-  debugLog('   🎙️ Using browser speech');
+  debugLog('   🎙️ Browser speech');
   
-  // Cancel and wait longer to ensure clean state
+  // Cancel immediately (synchronous)
   if(window.speechSynthesis.speaking){
     window.speechSynthesis.cancel();
-    debugLog('   ⏹️ Cancelled previous speech');
   }
   
-  setSpeaking(true);
-
-  let attemptCount = 0;
-  const maxAttempts = 3;
+  // Create utterance immediately (MUST be synchronous in gesture handler)
+  const u = new SpeechSynthesisUtterance(word);
+  u.rate = 0.75;
+  u.pitch = 1.0;
+  u.volume = 1.0;
+  u.lang = 'en-GB';
   
-  const trySpeak = (voiceToUse, langToUse) => {
-    attemptCount++;
-    debugLog(`   📢 Attempt ${attemptCount}/${maxAttempts}`);
-    
-    setTimeout(() => {
-      const u = new SpeechSynthesisUtterance(word);
-      u.rate  = 0.75;
-      u.pitch = 1.0;
-      u.volume = 1.0;
-      u.lang = langToUse || 'en-GB';
-      
-      if(voiceToUse){
-        u.voice = voiceToUse;
-        debugLog(`   🗣️ Voice: ${voiceToUse.name}`);
-      } else {
-        debugLog(`   🗣️ Default voice (lang: ${u.lang})`);
-      }
-      
-      u.onstart = () => {
-        debugLog('   ▶️ Started');
-      };
-      
-      u.onend = () => {
-        debugLog('   ✅ Completed');
-        setSpeaking(false);
-      };
-      
-      u.onerror = (e) => {
-        debugLog(`   ❌ Error: ${e.error}`);
-        
-        if(e.error === 'synthesis-failed' && attemptCount < maxAttempts){
-          const voices = window.speechSynthesis.getVoices();
-          
-          if(attemptCount === 1){
-            debugLog('   🔄 Retry with fallback voice...');
-            const ukVoices = voices.filter(v=>v.lang.startsWith('en-GB'));
-            const nonUSVoices = voices.filter(v=>v.lang.startsWith('en') && !v.lang.includes('US'));
-            const fallbackVoice = ukVoices[1] || nonUSVoices[0];
-            trySpeak(fallbackVoice, fallbackVoice?.lang || 'en-GB');
-            
-          } else if(attemptCount === 2){
-            debugLog('   🔄 Retry with no voice...');
-            trySpeak(null, 'en-GB');
-          } else {
-            debugLog('   ❌ All attempts failed');
-            setSpeaking(false);
-          }
-        } else {
-          setSpeaking(false);
-        }
-      };
-      
-      try {
-        window.speechSynthesis.speak(u);
-        debugLog('   ✅ speak() called');
-      } catch(e){
-        debugLog(`   ❌ speak() exception: ${e.message}`);
-        setSpeaking(false);
-      }
-    }, 100);
+  // Try to get UK voice
+  const voices = window.speechSynthesis.getVoices();
+  if(voices.length > 0){
+    const ukVoice = voices.find(v=>v.lang==='en-GB' || v.lang.startsWith('en-GB'));
+    if(ukVoice){
+      u.voice = ukVoice;
+      debugLog(`   Voice: ${ukVoice.name}`);
+    }
+  }
+  
+  u.onstart = () => debugLog('   ▶️ Started');
+  u.onend = () => {
+    debugLog('   ✅ Done');
+    setSpeaking(false);
+  };
+  u.onerror = (e) => {
+    debugLog(`   ❌ Error: ${e.error}`);
+    setSpeaking(false);
   };
   
-  // Start with cached UK voice or find one
-  if(_cachedUKVoice){
-    debugLog(`   💾 Using cached: ${_cachedUKVoice.name}`);
-    trySpeak(_cachedUKVoice, 'en-GB');
-  } else {
-    const voices = window.speechSynthesis.getVoices();
-    debugLog(`   🔍 Finding voice from ${voices.length} total...`);
-    
-    const ukVoices = voices.filter(v => 
-      v.lang === 'en-GB' || 
-      v.lang.startsWith('en-GB') ||
-      v.name.includes('UK') ||
-      v.name.includes('British')
-    );
-    
-    if(ukVoices.length > 0){
-      _cachedUKVoice = ukVoices[0];
-      debugLog(`   ✅ Found UK: ${_cachedUKVoice.name}`);
-      trySpeak(_cachedUKVoice, 'en-GB');
-    } else {
-      debugLog(`   ⚠️ No UK voice, using default`);
-      trySpeak(null, 'en-GB');
-    }
+  // Speak immediately - NO setTimeout!
+  try {
+    window.speechSynthesis.speak(u);
+    debugLog('   ✅ speak() called');
+  } catch(e){
+    debugLog(`   ❌ Exception: ${e.message}`);
+    setSpeaking(false);
   }
 }
 function speakCurrent(){ speakWord(currentWord); }
