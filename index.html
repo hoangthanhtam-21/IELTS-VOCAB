@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IELTS Vocab Master</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<!-- ResponsiveVoice - Free text-to-speech API -->
-<script src="https://code.responsivevoice.org/responsivevoice.js?key=jQZ2zl0q"></script>
 <style>
 :root{--bg:#0d0d0f;--surface:#16161a;--surface2:#1e1e24;--border:#2a2a35;--accent:#e8c547;--accent2:#7c6ee0;--accent3:#4ecdc4;--text:#f0eff4;--text2:#9d9daf;--danger:#ff6b6b;--success:#6bcb77;--radius:16px;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -277,7 +275,7 @@ svg.donut{transform:rotate(-90deg);}
         📌 <strong>Cách lấy JSONBin Key (miễn phí):</strong><br>
         1. Vào <a href="https://jsonbin.io" target="_blank">jsonbin.io</a> → Sign up (miễn phí)<br>
         2. Dashboard → API Keys → copy <strong>Secret Access Key</strong><br><br>
-        🔊 <strong>Giọng đọc:</strong> App tự động dùng ResponsiveVoice (miễn phí, hoạt động trên mọi trình duyệt & thiết bị)<br><br>
+        🔊 <strong>Giọng đọc:</strong> Tự động dùng giọng trình duyệt (built-in, không cần cài đặt)<br><br>
         🤖 <strong>Anthropic API Key (để dùng AI):</strong><br>
         Vào <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys → tạo key mới
       </div>
@@ -727,7 +725,7 @@ async function init(){
   if(sharedBinId){
     // Student mode: load shared bin directly
     document.getElementById('ov-msg').textContent = 'Đang tải từ vựng...';
-    debugLog('🔊 ResponsiveVoice TTS enabled (free, cross-browser)');
+    debugLog('🔊 Browser speech enabled');
     
     if(!sharedKey){
       document.getElementById('ov-msg').textContent = '⚠️ Link không hợp lệ (thiếu key)';
@@ -930,11 +928,20 @@ function showDebugPanel(){
   if(panel) panel.style.display = 'block';
   
   debugLog('=== DEBUG PANEL OPENED ===');
-  debugLog(`ResponsiveVoice: ${window.responsiveVoice ? 'Loaded ✅' : 'NOT loaded ❌'}`);
-  if(window.responsiveVoice){
-    debugLog(`  Available voices: ${window.responsiveVoice.getVoices().length}`);
+  debugLog(`speechSynthesis: ${window.speechSynthesis ? 'Available ✅' : 'NOT available ❌'}`);
+  
+  if(window.speechSynthesis){
+    const voices = window.speechSynthesis.getVoices();
+    debugLog(`Voices loaded: ${voices.length}`);
+    
+    const ukVoices = voices.filter(v => v.lang === 'en-GB' || v.lang.startsWith('en-GB'));
+    if(ukVoices.length > 0){
+      debugLog(`UK voices: ${ukVoices.length}`);
+      ukVoices.forEach(v => debugLog(`  - ${v.name}`));
+    } else {
+      debugLog(`⚠️ No UK voices found`);
+    }
   }
-  debugLog(`speechSynthesis: ${window.speechSynthesis ? 'Available' : 'NOT available'}`);
   
   if(window.speechSynthesis){
     const voices = window.speechSynthesis.getVoices();
@@ -980,7 +987,7 @@ async function doSetup(){
     const shareUrl = `${window.location.origin}${window.location.pathname}?bin=${CFG.binId}&key=${encodeURIComponent(CFG.apiKey)}`;
     
     setTimeout(()=>{
-      if(confirm('✅ Cài đặt thành công!\n\n🔊 Giọng đọc UK tự động kích hoạt (ResponsiveVoice - hoạt động trên mọi trình duyệt)\n\nBấm OK để copy link chia sẻ cho học sinh.')){
+      if(confirm('✅ Cài đặt thành công!\n\n🔊 Giọng đọc UK tự động (browser built-in)\n\nBấm OK để copy link chia sẻ cho học sinh.')){
         navigator.clipboard.writeText(shareUrl).then(()=>{
           showToast('📋 Đã copy link! Gửi cho học sinh.');
         }).catch(()=>{
@@ -1639,10 +1646,10 @@ async function doLogin(){
 function updateTTSStatusBadge(){
   const badge = document.getElementById('tts-status-badge');
   if(badge){
-    badge.textContent = '🔊 ResponsiveVoice Active';
-    badge.style.background = 'var(--success)';
-    badge.style.color = '#000';
-    badge.style.borderColor = 'var(--success)';
+    badge.textContent = '🔊 Browser Speech';
+    badge.style.background = 'var(--accent2)';
+    badge.style.color = '#fff';
+    badge.style.borderColor = 'var(--accent2)';
   }
 }
 
@@ -1885,120 +1892,78 @@ function speakWord(word){
   word = word.trim().toLowerCase();
   
   debugLog(`🔊 speakWord: "${word}"`);
-  setSpeaking(true);
-  
-  // CRITICAL: Must call speak synchronously within user gesture
-  // Try ResponsiveVoice first
-  if(typeof responsiveVoice !== 'undefined' && responsiveVoice.voiceSupport()){
-    debugLog('   Using ResponsiveVoice');
-    try {
-      responsiveVoice.cancel(); // Cancel any previous
-      responsiveVoice.speak(word, "UK English Female", {
-        rate: 0.75,
-        pitch: 1,
-        volume: 1,
-        onstart: () => debugLog('   ▶️ Started'),
-        onend: () => {
-          debugLog('   ✅ Done');
-          setSpeaking(false);
-        },
-        onerror: (e) => {
-          debugLog(`   ❌ Error: ${e}`);
-          setSpeaking(false);
-        }
-      });
-      return;
-    } catch(e){
-      debugLog(`   ❌ ResponsiveVoice failed: ${e.message}`);
-    }
-  }
-  
-  // Fallback: Try VoiceRSS (another free API)
-  debugLog('   Trying VoiceRSS...');
-  try {
-    const voiceRssUrl = `https://api.voicerss.org/?key=d02e791da3474baeb47ca325e3a1ae65&hl=en-gb&src=${encodeURIComponent(word)}`;
-    const audio = new Audio(voiceRssUrl);
-    audio.onplay = () => debugLog('   ▶️ VoiceRSS playing');
-    audio.onended = () => {
-      debugLog('   ✅ Done');
-      setSpeaking(false);
-    };
-    audio.onerror = () => {
-      debugLog('   ❌ VoiceRSS failed, using browser');
-      setSpeaking(false);
-      speakWithBrowser(word);
-    };
-    audio.play().catch(e => {
-      debugLog(`   ❌ Audio blocked: ${e.message}`);
-      setSpeaking(false);
-      speakWithBrowser(word);
-    });
-  } catch(e){
-    debugLog(`   ❌ Exception: ${e.message}`);
-    setSpeaking(false);
-    speakWithBrowser(word);
-  }
-}
-
-function speakWithResponsiveVoice(word){
-  // This function is no longer used - kept for compatibility
-  speakWord(word);
-}
-
-function speakWithBrowser(word){
-  if(!word||word==='—') return;
-  word = word.trim().toLowerCase();
   
   if(!window.speechSynthesis){
-    debugLog('   ❌ speechSynthesis N/A');
-    setSpeaking(false);
+    debugLog('   ❌ speechSynthesis not available');
     return;
   }
-
-  debugLog('   🎙️ Browser speech');
   
-  // Cancel immediately (synchronous)
-  if(window.speechSynthesis.speaking){
-    window.speechSynthesis.cancel();
-  }
+  // CRITICAL: Must be called synchronously within user gesture
+  // Cancel any ongoing speech
+  window.speechSynthesis.cancel();
   
-  // Create utterance immediately (MUST be synchronous in gesture handler)
-  const u = new SpeechSynthesisUtterance(word);
-  u.rate = 0.75;
-  u.pitch = 1.0;
-  u.volume = 1.0;
-  u.lang = 'en-GB';
+  // Create utterance IMMEDIATELY (synchronous)
+  const utterance = new SpeechSynthesisUtterance(word);
+  utterance.lang = 'en-GB';
+  utterance.rate = 0.75;
+  utterance.pitch = 1.0;
+  utterance.volume = 1.0;
   
-  // Try to get UK voice
+  // Try to use UK voice if available
   const voices = window.speechSynthesis.getVoices();
-  if(voices.length > 0){
-    const ukVoice = voices.find(v=>v.lang==='en-GB' || v.lang.startsWith('en-GB'));
+  if(voices && voices.length > 0){
+    // Priority: UK female voices
+    const ukVoice = voices.find(v => 
+      v.lang === 'en-GB' && v.name.toLowerCase().includes('female')
+    ) || voices.find(v => 
+      v.lang === 'en-GB'
+    ) || voices.find(v => 
+      v.lang.startsWith('en-') && !v.lang.includes('US')
+    );
+    
     if(ukVoice){
-      u.voice = ukVoice;
+      utterance.voice = ukVoice;
       debugLog(`   Voice: ${ukVoice.name}`);
     }
   }
   
-  u.onstart = () => debugLog('   ▶️ Started');
-  u.onend = () => {
+  utterance.onstart = () => {
+    debugLog('   ▶️ Playing');
+    setSpeaking(true);
+  };
+  
+  utterance.onend = () => {
     debugLog('   ✅ Done');
     setSpeaking(false);
   };
-  u.onerror = (e) => {
+  
+  utterance.onerror = (e) => {
     debugLog(`   ❌ Error: ${e.error}`);
     setSpeaking(false);
   };
   
-  // Speak immediately - NO setTimeout!
+  // Speak IMMEDIATELY - no setTimeout, no async, no delays
   try {
-    window.speechSynthesis.speak(u);
+    window.speechSynthesis.speak(utterance);
     debugLog('   ✅ speak() called');
   } catch(e){
     debugLog(`   ❌ Exception: ${e.message}`);
-    setSpeaking(false);
   }
 }
-function speakCurrent(){ speakWord(currentWord); }
+
+function speakWithResponsiveVoice(word){
+  // Legacy - redirect to speakWord
+  speakWord(word);
+}
+
+function speakWithBrowser(word){
+  // Legacy - redirect to speakWord
+  speakWord(word);
+}
+
+function speakCurrent(){ 
+  if(currentWord) speakWord(currentWord); 
+}
 
 // ════════════════════════════════════
 //  TOAST
