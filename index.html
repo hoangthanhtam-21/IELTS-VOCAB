@@ -53,6 +53,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding-bot
 .hstat-lbl{font-size:10px;color:var(--text2);letter-spacing:2px;text-transform:uppercase;}
 .admin-gear{font-size:18px;cursor:pointer;opacity:.35;transition:opacity .2s;border:none;background:none;color:var(--text);padding:4px;}
 .admin-gear:hover{opacity:.8;}
+.admin-gear:disabled{opacity:.5;cursor:not-allowed;animation:rotate 1s linear infinite;}
+@keyframes rotate{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 
 /* ── NAV ── */
 .nav-tabs{display:flex;gap:5px;background:var(--surface);border-radius:13px;padding:5px;margin-bottom:28px;}
@@ -297,7 +299,10 @@ svg.donut{transform:rotate(-90deg);}
       <div class="hstat" style="text-align:center"><div class="hstat-num" id="h-due">0</div><div class="hstat-lbl">Hôm nay</div></div>
       <div class="hstat" style="text-align:center"><div class="hstat-num" id="h-mastered">0</div><div class="hstat-lbl">Thuộc</div></div>
     </div>
-    <button class="admin-gear" onclick="showLoginScreen()" title="Admin">⚙</button>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button id="sync-btn" class="admin-gear" onclick="manualSync()" title="Đồng bộ dữ liệu" style="display:none;">🔄</button>
+      <button class="admin-gear" onclick="showLoginScreen()" title="Admin">⚙</button>
+    </div>
   </header>
 
   <!-- Debug Panel (visible for troubleshooting) -->
@@ -710,6 +715,101 @@ async function binWrite(data){
 }
 
 // ════════════════════════════════════
+//  AUTO-SYNC (for student mode)
+// ════════════════════════════════════
+let autoSyncTimer = null;
+let lastSyncTime = 0;
+let studentBinId = null;
+let studentApiKey = null;
+
+function setupAutoSync(binId, apiKey){
+  if(!binId || !apiKey) return;
+  
+  // Store for manual sync
+  studentBinId = binId;
+  studentApiKey = apiKey;
+  
+  // Show sync button
+  const syncBtn = document.getElementById('sync-btn');
+  if(syncBtn) syncBtn.style.display = 'block';
+  
+  debugLog('🔄 Auto-sync enabled - checking every 2 minutes');
+  
+  // Check immediately after 30 seconds (first sync)
+  setTimeout(()=>checkForUpdates(binId, apiKey), 30000);
+  
+  // Then check every 2 minutes
+  autoSyncTimer = setInterval(()=>checkForUpdates(binId, apiKey), 120000); // 2 minutes
+}
+
+function manualSync(){
+  if(!studentBinId || !studentApiKey){
+    showToast('⚠️ Không thể đồng bộ - thiếu thông tin kết nối');
+    return;
+  }
+  
+  const btn = document.getElementById('sync-btn');
+  if(btn){
+    btn.textContent = '⏳';
+    btn.disabled = true;
+  }
+  
+  checkForUpdates(studentBinId, studentApiKey).then(()=>{
+    if(btn){
+      btn.textContent = '🔄';
+      btn.disabled = false;
+    }
+  });
+}
+
+async function checkForUpdates(binId, apiKey){
+  try {
+    debugLog('🔄 Checking for updates...');
+    
+    const r = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+      headers: {
+        'X-Master-Key': apiKey,
+        'X-Access-Key': apiKey
+      }
+    });
+    
+    if(!r.ok){
+      debugLog('   ⚠️ Update check failed');
+      return;
+    }
+    
+    const data = await r.json();
+    const newData = data.record;
+    
+    // Compare with current CLOUD data
+    const currentWordCount = (CLOUD.topics||[]).reduce((sum,t)=>(t.words||[]).length+sum, 0);
+    const newWordCount = (newData.topics||[]).reduce((sum,t)=>(t.words||[]).length+sum, 0);
+    const currentTopicCount = (CLOUD.topics||[]).length;
+    const newTopicCount = (newData.topics||[]).length;
+    
+    if(newWordCount !== currentWordCount || newTopicCount !== currentTopicCount){
+      debugLog(`   ✅ Updates found! Topics: ${currentTopicCount}→${newTopicCount}, Words: ${currentWordCount}→${newWordCount}`);
+      
+      // Update CLOUD data
+      CLOUD = newData;
+      
+      // Re-render student view
+      renderStudent();
+      
+      // Show notification to user
+      showToast(`📥 Đã cập nhật: ${newTopicCount} chủ đề, ${newWordCount} từ vựng`);
+      
+      lastSyncTime = Date.now();
+    } else {
+      debugLog('   ✓ No updates');
+    }
+    
+  } catch(e){
+    debugLog(`   ❌ Sync error: ${e.message}`);
+  }
+}
+
+// ════════════════════════════════════
 //  INIT
 // ════════════════════════════════════
 async function init(){
@@ -754,6 +854,9 @@ async function init(){
     ov.classList.add('hidden');
     app.style.display = 'block';
     document.getElementById('student-app').style.display = 'block';
+    
+    // Setup auto-sync for student mode - check for updates every 2 minutes
+    setupAutoSync(sharedBinId, sharedKey);
     
     // Show audio unlock overlay for student mode
     const audioUnlock = document.getElementById('audio-unlock');
