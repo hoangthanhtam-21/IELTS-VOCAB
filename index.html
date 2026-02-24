@@ -811,13 +811,9 @@ async function init(){
   const sharedBinId = urlParams.get('bin');
   const sharedKey = urlParams.get('key');
 
-  console.time('Student Init');
-
   if(sharedBinId){
     // Student mode: load shared bin directly
-    console.log('🎓 Student mode detected');
     document.getElementById('ov-msg').textContent = '📥 Đang tải từ vựng...';
-    debugLog('🔊 Browser speech enabled');
     
     if(!sharedKey){
       document.getElementById('ov-msg').textContent = '⚠️ Link không hợp lệ (thiếu key)';
@@ -829,17 +825,11 @@ async function init(){
       renderStudent();
       return;
     }
+    
     try {
-      // Add timeout to prevent hanging
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
-      
       const r = await fetch(`https://api.jsonbin.io/v3/b/${sharedBinId}/latest`, {
-        headers: {'X-Master-Key': sharedKey, 'X-Access-Key': sharedKey},
-        signal: controller.signal
+        headers: {'X-Master-Key': sharedKey, 'X-Access-Key': sharedKey}
       });
-      
-      clearTimeout(timeoutId);
       
       if(r.ok){
         CLOUD = (await r.json()).record || {topics:[]};
@@ -848,25 +838,20 @@ async function init(){
       }
     } catch(e){
       console.error('Load error:', e);
-      document.getElementById('ov-msg').textContent = '⚠️ Không tải được dữ liệu. ' + (e.name === 'AbortError' ? 'Timeout!' : 'Kiểm tra link!');
+      document.getElementById('ov-msg').textContent = '⚠️ Không tải được dữ liệu chia sẻ';
       await sleep(1500);
       CLOUD = {topics:[]};
     }
+    
     ov.classList.add('hidden');
     app.style.display = 'block';
     document.getElementById('student-app').style.display = 'block';
     
-    console.timeEnd('Student Init');
-    console.log('✅ Student app ready');
-    
-    // Render UI immediately - don't wait for anything
     renderStudent();
     
-    // Setup auto-sync in background (non-blocking)
-    setTimeout(()=>setupAutoSync(sharedBinId, sharedKey), 100);
-    
-    // Load voice in background (non-blocking)
-    setTimeout(()=>loadVoice(), 200);
+    // Setup background tasks
+    setupAutoSync(sharedBinId, sharedKey);
+    loadVoice();
     
     return;
   }
